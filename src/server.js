@@ -60,6 +60,22 @@ function formatDate(date) {
     return new Date(date).toLocaleDateString('pt-BR', options);
 }
 
+// Helper function to format simple date
+function formatSimpleDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('pt-BR', { 
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+}
+
+// Helper function to format infraction text
+function formatInfractionText(infracao, valor_praticado, valor_limite, metrica, data_infracao, hora_infracao) {
+    const dataFormatada = formatSimpleDate(data_infracao);
+    return `${infracao} de ${valor_praticado}${metrica}, sendo o limite estabelecido de ${valor_limite}${metrica}. Na data de ${dataFormatada} às ${hora_infracao}.`;
+}
+
 // Function to map frontend data to template data
 function mapDataToTemplate(frontendData) {
     // Get evidence information
@@ -70,11 +86,17 @@ function mapDataToTemplate(frontendData) {
     if (frontendData.evidence2_url) evidencias.push({ url: frontendData.evidence2_url });
     if (frontendData.evidence3_url) evidencias.push({ url: frontendData.evidence3_url });
     
-    if (frontendData.valor_praticado) {
-        informacoesEvidencia.push(`Valor registrado: ${frontendData.valor_praticado}${frontendData.metrica}`);
-    }
-    if (frontendData.valor_limite) {
-        informacoesEvidencia.push(`Limite permitido: ${frontendData.valor_limite}${frontendData.metrica}`);
+    // Format infraction text if all required values are present
+    let descricaoInfracao = frontendData.infracao_cometida;
+    if (frontendData.valor_praticado && frontendData.valor_limite && frontendData.metrica) {
+        descricaoInfracao = formatInfractionText(
+            frontendData.infracao_cometida,
+            frontendData.valor_praticado,
+            frontendData.valor_limite,
+            frontendData.metrica,
+            frontendData.data_infracao,
+            frontendData.hora_infracao
+        );
     }
 
     return {
@@ -86,10 +108,10 @@ function mapDataToTemplate(frontendData) {
         funcao: frontendData.funcao,
         setor: frontendData.setor,
         codigoInfracao: frontendData.codigo_infracao,
-        descricaoInfracao: frontendData.infracao_cometida,
+        descricaoInfracao,
         dataOcorrencia: frontendData.data_infracao,
         horaOcorrencia: frontendData.hora_infracao,
-        tipoMedida: frontendData.tipo_medida, // 'Advertido' or 'Suspenso'
+        tipoMedida: frontendData.tipo_medida,
         codigoMedida: frontendData.penalidade_aplicada?.split(' ')[0] || '',
         descricaoMedida: frontendData.penalidade_aplicada?.split(' ').slice(1).join(' ') || '',
         nomeLider: frontendData.nome_lider,
@@ -107,75 +129,27 @@ function createCombinedHTML(html1, html2, isPreview = false) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Documento Disciplinar</title>
     <style>
-        @page {
-            size: A4;
-            margin: 0;
-        }
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Century Gothic', 'Arial', 'Helvetica', sans-serif;
-            font-size: 10px;
-            background: ${isPreview ? '#f0f0f0' : 'white'};
-        }
-        .pages {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            ${isPreview ? 'gap: 20px; padding: 20px;' : ''}
-        }
-        .page {
-            width: 210mm;
-            height: 297mm;
-            margin: 0 auto;
-            background: white;
-            position: relative;
-            ${isPreview ? 'box-shadow: 0 0 10px rgba(0,0,0,0.1);' : ''}
-        }
-        .content-container {
-            position: absolute;
-            top: 12.7mm;
-            right: 12.7mm;
-            bottom: 12.7mm;
-            left: 12.7mm;
-            border: 1px solid black;
-        }
         @media print {
             body {
-                background: white;
-            }
-            .pages {
-                gap: 0;
+                margin: 0;
                 padding: 0;
             }
-            .page {
-                box-shadow: none;
-            }
-            .page:first-child {
-                page-break-after: always;
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
         }
     </style>
 </head>
 <body>
-    <div class="pages">
-        <div class="page">
-            <div class="content-container">
-                ${html1}
-            </div>
-        </div>
-        <div class="page">
-            <div class="content-container">
-                ${html2}
-            </div>
-        </div>
-    </div>
+    ${html1}
+    ${html2}
 </body>
 </html>`;
 }
 
-// Rota para preview
-app.get('/preview', async (req, res) => {
+// Rota para preview da primeira página
+app.get('/preview1', async (req, res) => {
     try {
         // Read template
         const template1Path = path.join(__dirname, '../templates/tratativaFolha1.hbs');
@@ -185,53 +159,41 @@ app.get('/preview', async (req, res) => {
         const mockData = {
             ...FIXED_VALUES,
             ...generateMockData(),
-            dataFormatada: formatDate(new Date())
+            dataFormatada: formatDate(new Date()),
+            cpf: '123.456.789-10'
         };
         
-        // Compile and render the actual template
+        // Compile and render template
         const template1 = handlebars.compile(template1Content);
         const html1 = template1(mockData);
         
-        // Create minimal preview wrapper
-        const previewHTML = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Preview - Medida Disciplinar</title>
-    <style>
-        body {
-            background: #f0f0f0;
-            margin: 0;
-            padding: 20px;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            box-sizing: border-box;
-        }
-        .preview-container {
-            background: white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            width: 210mm;
-            height: 297mm;
-            margin: 0 auto;
-            position: relative;
-        }
-    </style>
-</head>
-<body>
-    <div class="preview-container">
-        ${html1}
-    </div>
-</body>
-</html>`;
+        res.send(html1);
+    } catch (error) {
+        console.error('Erro ao renderizar preview:', error);
+        res.status(500).send('Erro ao gerar preview');
+    }
+});
+
+// Rota para preview da segunda página
+app.get('/preview2', async (req, res) => {
+    try {
+        // Read template
+        const template2Path = path.join(__dirname, '../templates/tratativaFolha2.hbs');
+        const template2Content = await fs.readFile(template2Path, 'utf8');
         
-        // Add cache control headers to prevent caching
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-        res.setHeader('Expires', '-1');
-        res.setHeader('Pragma', 'no-cache');
+        // Generate mock data
+        const mockData = {
+            ...FIXED_VALUES,
+            ...generateMockData(),
+            dataFormatada: formatDate(new Date()),
+            cpf: '123.456.789-10'
+        };
         
-        res.send(previewHTML);
+        // Compile and render template
+        const template2 = handlebars.compile(template2Content);
+        const html2 = template2(mockData);
+        
+        res.send(html2);
     } catch (error) {
         console.error('Erro ao renderizar preview:', error);
         res.status(500).send('Erro ao gerar preview');
@@ -266,9 +228,11 @@ app.post('/generate', async (req, res) => {
     }
 });
 
-// Inicia o servidor
+// Update server startup message
 app.listen(port, () => {
     console.log(`Servidor rodando em http://localhost:${port}`);
-    console.log(`Para ver o preview, acesse: http://localhost:${port}/preview`);
+    console.log(`Para ver os previews, acesse:`);
+    console.log(`- Página 1: http://localhost:${port}/preview1`);
+    console.log(`- Página 2: http://localhost:${port}/preview2`);
     console.log('Pressione Ctrl+C para parar o servidor');
 }); 
