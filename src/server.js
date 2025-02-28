@@ -5,6 +5,30 @@ const path = require('path');
 const { generateMockData } = require('./mockData');
 const puppeteer = require('puppeteer');
 const { PDFDocument } = require('pdf-lib');
+const winston = require('winston');
+
+// Initialize Winston Logger
+const logger = winston.createLogger({
+    level: 'info',
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json()
+    ),
+    transports: [
+        new winston.transports.File({ filename: 'error.log', level: 'error' }),
+        new winston.transports.File({ filename: 'combined.log' })
+    ]
+});
+
+// Add console transport in development
+if (process.env.NODE_ENV !== 'production') {
+    logger.add(new winston.transports.Console({
+        format: winston.format.combine(
+            winston.format.colorize(),
+            winston.format.simple()
+        )
+    }));
+}
 
 const app = express();
 const port = 3000;
@@ -149,35 +173,91 @@ function createCombinedHTML(html1, html2, isPreview = false) {
 </html>`;
 }
 
-// Helper function to generate PDF from HTML
-async function generatePDFFromHTML(html) {
+// Helper function to wait for images with timeout
+async function waitForImagesWithTimeout(page, timeout = 5000) {
+    logger.info('Starting image load wait process', { timeout });
+    try {
+        await page.evaluate(async (timeout) => {
+            const selectors = Array.from(document.getElementsByTagName('img'));
+            logger.info('Found images to load', { count: selectors.length });
+            
+            await Promise.race([
+                Promise.all(selectors.map(img => {
+                    if (img.complete) {
+                        console.log('Image already loaded:', img.src);
+                        return Promise.resolve();
+                    }
+                    return new Promise((resolve, reject) => {
+                        img.addEventListener('load', () => {
+                            console.log('Image loaded:', img.src);
+                            resolve();
+                        });
+                        img.addEventListener('error', () => {
+                            console.error('Image failed to load:', img.src);
+                            reject(new Error(`Failed to load image: ${img.src}`));
+                        });
+                    });
+                })),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Image loading timeout')), timeout)
+                )
+            ]);
+        }, timeout);
+        logger.info('All images loaded successfully');
+        return true;
+    } catch (error) {
+        logger.error('Error loading images', { error: error.message });
+        return false;
+    }
+}
+
+// Enhanced PDF generation function
+async function generatePDFFromHTML(html, templateName) {
+    logger.info('Starting PDF generation', { templateName });
     const browser = await puppeteer.launch({ headless: 'new' });
     const page = await browser.newPage();
     
-    // Set content and wait for network idle to ensure all resources are loaded
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    
-    // Wait for images to load
-    await page.evaluate(async () => {
-        const selectors = Array.from(document.getElementsByTagName('img'));
-        await Promise.all(selectors.map(img => {
-            if (img.complete) return;
-            return new Promise((resolve, reject) => {
-                img.addEventListener('load', resolve);
-                img.addEventListener('error', reject);
-            });
-        }));
-    });
-    
-    // Generate PDF with A4 size
-    const pdf = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: 0, right: 0, bottom: 0, left: 0 }
-    });
-    
-    await browser.close();
-    return pdf;
+    try {
+        // Set viewport and emulate print media
+        await page.setViewport({ width: 794, height: 1123 }); // A4 dimensions in pixels
+        await page.emulateMediaType('print');
+        
+        // Set content and wait for network idle
+        logger.info('Setting page content');
+        await page.setContent(html, { 
+            waitUntil: ['networkidle0', 'load', 'domcontentloaded'],
+            timeout: 30000
+        });
+        
+        // Wait for images with timeout
+        const imagesLoaded = await waitForImagesWithTimeout(page);
+        if (!imagesLoaded) {
+            logger.warn('Some images may not have loaded properly');
+        }
+
+        // Add small delay to ensure complete rendering
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Generate PDF
+        logger.info('Generating PDF document');
+        const pdf = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: 0, right: 0, bottom: 0, left: 0 }
+        });
+        
+        logger.info('PDF generated successfully');
+        return pdf;
+    } catch (error) {
+        logger.error('Error generating PDF', { 
+            error: error.message,
+            templateName,
+            stack: error.stack
+        });
+        throw error;
+    } finally {
+        await browser.close();
+    }
 }
 
 // Helper function to merge PDFs
@@ -203,9 +283,12 @@ async function mergePDFs(pdf1Buffer, pdf2Buffer) {
 // Rota para preview da primeira página
 app.get('/preview1', async (req, res) => {
     try {
+        logger.info('Starting preview1 route');
+        
         // Read template
         const template1Path = path.join(__dirname, '../templates/tratativaFolha1.hbs');
         const template1Content = await fs.readFile(template1Path, 'utf8');
+        logger.info('Template 1 loaded successfully');
         
         // Create mock data with complete information
         const mockData = {
@@ -235,13 +318,22 @@ app.get('/preview1', async (req, res) => {
             ]
         };
         
+        logger.info('Mock data prepared', { 
+            documentNumber: mockData.numero_documento,
+            hasEvidence: mockData.evidencias.length > 0 
+        });
+        
         // Compile and render template
         const template1 = handlebars.compile(template1Content);
         const html1 = template1(mockData);
+        logger.info('Template 1 rendered successfully');
         
         res.send(html1);
     } catch (error) {
-        console.error('Erro ao renderizar preview:', error);
+        logger.error('Error in preview1 route', { 
+            error: error.message,
+            stack: error.stack 
+        });
         res.status(500).send('Erro ao gerar preview');
     }
 });
@@ -249,9 +341,12 @@ app.get('/preview1', async (req, res) => {
 // Rota para preview da segunda página
 app.get('/preview2', async (req, res) => {
     try {
+        logger.info('Starting preview2 route');
+        
         // Read template
         const template2Path = path.join(__dirname, '../templates/tratativaFolha2.hbs');
         const template2Content = await fs.readFile(template2Path, 'utf8');
+        logger.info('Template 2 loaded successfully');
         
         // Use the same mock data structure as preview1
         const mockData = {
@@ -281,13 +376,32 @@ app.get('/preview2', async (req, res) => {
             ]
         };
         
+        logger.info('Mock data prepared for template 2', { 
+            documentNumber: mockData.numero_documento,
+            hasEvidence: mockData.evidencias.length > 0 
+        });
+        
+        // Log template data before compilation
+        logger.info('Template 2 data check', {
+            hasRequiredFields: {
+                nome_funcionario: !!mockData.nome_funcionario,
+                cpf: !!mockData.cpf,
+                tipo_medida: !!mockData.tipo_medida,
+                infracao_cometida: !!mockData.infracao_cometida
+            }
+        });
+        
         // Compile and render template
         const template2 = handlebars.compile(template2Content);
         const html2 = template2(mockData);
+        logger.info('Template 2 rendered successfully');
         
         res.send(html2);
     } catch (error) {
-        console.error('Erro ao renderizar preview:', error);
+        logger.error('Error in preview2 route', { 
+            error: error.message,
+            stack: error.stack 
+        });
         res.status(500).send('Erro ao gerar preview');
     }
 });
@@ -311,8 +425,8 @@ app.post('/generate', async (req, res) => {
         const html2 = template2(templateData);
         
         // Generate individual PDFs
-        const pdf1 = await generatePDFFromHTML(html1);
-        const pdf2 = await generatePDFFromHTML(html2);
+        const pdf1 = await generatePDFFromHTML(html1, 'tratativaFolha1.hbs');
+        const pdf2 = await generatePDFFromHTML(html2, 'tratativaFolha2.hbs');
         
         // Merge PDFs
         const mergedPdf = await mergePDFs(pdf1, pdf2);
@@ -375,8 +489,8 @@ app.get('/generate-test', async (req, res) => {
         const html2 = template2(mockData);
         
         // Generate individual PDFs
-        const pdf1 = await generatePDFFromHTML(html1);
-        const pdf2 = await generatePDFFromHTML(html2);
+        const pdf1 = await generatePDFFromHTML(html1, 'tratativaFolha1.hbs');
+        const pdf2 = await generatePDFFromHTML(html2, 'tratativaFolha2.hbs');
         
         // Merge PDFs
         const mergedPdf = await mergePDFs(pdf1, pdf2);
