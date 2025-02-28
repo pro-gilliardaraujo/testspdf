@@ -3,6 +3,8 @@ const handlebars = require('handlebars');
 const fs = require('fs').promises;
 const path = require('path');
 const { generateMockData } = require('./mockData');
+const puppeteer = require('puppeteer');
+const { PDFDocument } = require('pdf-lib');
 
 const app = express();
 const port = 3000;
@@ -148,6 +150,45 @@ function createCombinedHTML(html1, html2, isPreview = false) {
 </html>`;
 }
 
+// Helper function to generate PDF from HTML
+async function generatePDFFromHTML(html) {
+    const browser = await puppeteer.launch({ headless: 'new' });
+    const page = await browser.newPage();
+    
+    // Set content and wait for network idle to ensure all resources are loaded
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    
+    // Generate PDF with A4 size
+    const pdf = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: 0, right: 0, bottom: 0, left: 0 }
+    });
+    
+    await browser.close();
+    return pdf;
+}
+
+// Helper function to merge PDFs
+async function mergePDFs(pdf1Buffer, pdf2Buffer) {
+    const mergedPdf = await PDFDocument.create();
+    
+    // Load both PDFs
+    const pdf1 = await PDFDocument.load(pdf1Buffer);
+    const pdf2 = await PDFDocument.load(pdf2Buffer);
+    
+    // Copy pages from both PDFs
+    const [pdf1Page] = await mergedPdf.copyPages(pdf1, [0]);
+    const [pdf2Page] = await mergedPdf.copyPages(pdf2, [0]);
+    
+    // Add pages to the new document
+    mergedPdf.addPage(pdf1Page);
+    mergedPdf.addPage(pdf2Page);
+    
+    // Save the merged PDF
+    return await mergedPdf.save();
+}
+
 // Rota para preview da primeira página
 app.get('/preview1', async (req, res) => {
     try {
@@ -230,10 +271,17 @@ app.post('/generate', async (req, res) => {
         const html1 = template1(templateData);
         const html2 = template2(templateData);
         
-        // Create combined HTML for PDF generation
-        const combinedHTML = createCombinedHTML(html1, html2, false);
+        // Generate individual PDFs
+        const pdf1 = await generatePDFFromHTML(html1);
+        const pdf2 = await generatePDFFromHTML(html2);
         
-        res.send(combinedHTML);
+        // Merge PDFs
+        const mergedPdf = await mergePDFs(pdf1, pdf2);
+        
+        // Send the merged PDF
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename=documento_disciplinar.pdf');
+        res.send(Buffer.from(mergedPdf));
     } catch (error) {
         console.error('Erro ao gerar documento:', error);
         res.status(500).send('Erro ao gerar documento');
