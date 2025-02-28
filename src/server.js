@@ -157,6 +157,18 @@ async function generatePDFFromHTML(html) {
     // Set content and wait for network idle to ensure all resources are loaded
     await page.setContent(html, { waitUntil: 'networkidle0' });
     
+    // Wait for images to load
+    await page.evaluate(async () => {
+        const selectors = Array.from(document.getElementsByTagName('img'));
+        await Promise.all(selectors.map(img => {
+            if (img.complete) return;
+            return new Promise((resolve, reject) => {
+                img.addEventListener('load', resolve);
+                img.addEventListener('error', reject);
+            });
+        }));
+    });
+    
     // Generate PDF with A4 size
     const pdf = await page.pdf({
         format: 'A4',
@@ -195,15 +207,32 @@ app.get('/preview1', async (req, res) => {
         const template1Path = path.join(__dirname, '../templates/tratativaFolha1.hbs');
         const template1Content = await fs.readFile(template1Path, 'utf8');
         
-        // Generate mock data with basic infraction information
+        // Create mock data with complete information
         const mockData = {
             ...FIXED_VALUES,
-            ...generateMockData(),
-            dataFormatada: formatDate(new Date()),
+            numero_documento: 'DOC-2024-001',
+            nome_funcionario: 'João da Silva',
             cpf: '123.456.789-10',
+            dataFormatada: formatDate(new Date()),
+            funcao: 'Motorista',
+            setor: 'Logística',
+            codigo_infracao: 'INF-001',
             infracao_cometida: 'Excesso de Velocidade',
-            data_infracao: '2025-02-28',
-            hora_infracao: '12:50'
+            valor_praticado: '19',
+            valor_limite: '15',
+            metrica: 'km/h',
+            data_infracao: '27/02/2025',
+            hora_infracao: '12:50',
+            tipo_medida: 'P1',
+            penalidade_aplicada: 'ADV-001 Advertência por escrito',
+            nome_lider: 'Maria Supervisora',
+            evidencias: [
+                { url: '/assets/images/evidenceexample.png' }
+            ],
+            informacoesEvidencia: [
+                'Valor registrado: 19km/h',
+                'Limite permitido: 15km/h'
+            ]
         };
         
         // Compile and render template
@@ -224,18 +253,32 @@ app.get('/preview2', async (req, res) => {
         const template2Path = path.join(__dirname, '../templates/tratativaFolha2.hbs');
         const template2Content = await fs.readFile(template2Path, 'utf8');
         
-        // Generate mock data with complete infraction information
+        // Use the same mock data structure as preview1
         const mockData = {
             ...FIXED_VALUES,
-            ...generateMockData(),
-            dataFormatada: formatDate(new Date()),
+            numero_documento: 'DOC-2024-001',
+            nome_funcionario: 'João da Silva',
             cpf: '123.456.789-10',
+            dataFormatada: formatDate(new Date()),
+            funcao: 'Motorista',
+            setor: 'Logística',
+            codigo_infracao: 'INF-001',
             infracao_cometida: 'Excesso de Velocidade',
             valor_praticado: '19',
             valor_limite: '15',
             metrica: 'km/h',
-            data_infracao: '2025-02-28',
-            hora_infracao: '12:50'
+            data_infracao: '27/02/2025',
+            hora_infracao: '12:50',
+            tipo_medida: 'P1',
+            penalidade_aplicada: 'ADV-001 Advertência por escrito',
+            nome_lider: 'Maria Supervisora',
+            evidencias: [
+                { url: '/assets/images/evidenceexample.png' }
+            ],
+            informacoesEvidencia: [
+                'Valor registrado: 19km/h',
+                'Limite permitido: 15km/h'
+            ]
         };
         
         // Compile and render template
