@@ -16,6 +16,30 @@ app.use(express.json());
 // Serve static files from assets directory
 app.use('/assets', express.static(path.join(workspaceRoot, 'assets')));
 
+// Register Handlebars helpers
+handlebars.registerHelper('eq', function(a, b) {
+    return a === b;
+});
+
+handlebars.registerHelper('formatCPF', function(cpf) {
+    if (!cpf) return '';
+    
+    // Remove any non-digit characters
+    const cleanCPF = cpf.replace(/\D/g, '');
+    
+    // Check if it's already in the correct format
+    if (/^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf)) {
+        return cpf;
+    }
+    
+    // Format the CPF
+    if (cleanCPF.length === 11) {
+        return cleanCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    }
+    
+    return cpf; // Return original if invalid
+});
+
 // Fixed/static values
 const FIXED_VALUES = {
     titulo: 'ACR-003_Medida_Disciplinar',
@@ -57,6 +81,7 @@ function mapDataToTemplate(frontendData) {
         ...FIXED_VALUES,
         numeroDocumento: frontendData.numero_documento,
         nome: frontendData.nome_funcionario,
+        cpf: frontendData.cpf,
         dataFormatada: formatDate(new Date()),
         funcao: frontendData.funcao,
         setor: frontendData.setor,
@@ -64,6 +89,7 @@ function mapDataToTemplate(frontendData) {
         descricaoInfracao: frontendData.infracao_cometida,
         dataOcorrencia: frontendData.data_infracao,
         horaOcorrencia: frontendData.hora_infracao,
+        tipoMedida: frontendData.tipo_medida, // 'Advertido' or 'Suspenso'
         codigoMedida: frontendData.penalidade_aplicada?.split(' ')[0] || '',
         descricaoMedida: frontendData.penalidade_aplicada?.split(' ').slice(1).join(' ') || '',
         nomeLider: frontendData.nome_lider,
@@ -72,30 +98,140 @@ function mapDataToTemplate(frontendData) {
     };
 }
 
+// Helper function to create combined HTML
+function createCombinedHTML(html1, html2, isPreview = false) {
+    return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documento Disciplinar</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Century Gothic', 'Arial', 'Helvetica', sans-serif;
+            font-size: 10px;
+            background: ${isPreview ? '#f0f0f0' : 'white'};
+        }
+        .pages {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            ${isPreview ? 'gap: 20px; padding: 20px;' : ''}
+        }
+        .page {
+            width: 210mm;
+            height: 297mm;
+            margin: 0 auto;
+            background: white;
+            position: relative;
+            ${isPreview ? 'box-shadow: 0 0 10px rgba(0,0,0,0.1);' : ''}
+        }
+        .content-container {
+            position: absolute;
+            top: 12.7mm;
+            right: 12.7mm;
+            bottom: 12.7mm;
+            left: 12.7mm;
+            border: 1px solid black;
+        }
+        @media print {
+            body {
+                background: white;
+            }
+            .pages {
+                gap: 0;
+                padding: 0;
+            }
+            .page {
+                box-shadow: none;
+            }
+            .page:first-child {
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="pages">
+        <div class="page">
+            <div class="content-container">
+                ${html1}
+            </div>
+        </div>
+        <div class="page">
+            <div class="content-container">
+                ${html2}
+            </div>
+        </div>
+    </div>
+</body>
+</html>`;
+}
+
 // Rota para preview
 app.get('/preview', async (req, res) => {
     try {
-        // Lê o template
-        const templatePath = path.join(__dirname, '../templates/tratativaFolha1.hbs');
-        const templateContent = await fs.readFile(templatePath, 'utf8');
+        // Read template
+        const template1Path = path.join(__dirname, '../templates/tratativaFolha1.hbs');
+        const template1Content = await fs.readFile(template1Path, 'utf8');
         
-        // Generate new random data for each request
+        // Generate mock data
         const mockData = {
             ...FIXED_VALUES,
             ...generateMockData(),
             dataFormatada: formatDate(new Date())
         };
         
-        // Compila e renderiza o template
-        const template = handlebars.compile(templateContent);
-        const html = template(mockData);
+        // Compile and render the actual template
+        const template1 = handlebars.compile(template1Content);
+        const html1 = template1(mockData);
+        
+        // Create minimal preview wrapper
+        const previewHTML = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview - Medida Disciplinar</title>
+    <style>
+        body {
+            background: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+        .preview-container {
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 210mm;
+            height: 297mm;
+            margin: 0 auto;
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-container">
+        ${html1}
+    </div>
+</body>
+</html>`;
         
         // Add cache control headers to prevent caching
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         res.setHeader('Expires', '-1');
         res.setHeader('Pragma', 'no-cache');
         
-        res.send(html);
+        res.send(previewHTML);
     } catch (error) {
         console.error('Erro ao renderizar preview:', error);
         res.status(500).send('Erro ao gerar preview');
@@ -105,18 +241,25 @@ app.get('/preview', async (req, res) => {
 // Rota para gerar PDF com dados reais
 app.post('/generate', async (req, res) => {
     try {
-        // Lê o template
-        const templatePath = path.join(__dirname, '../templates/tratativaFolha1.hbs');
-        const templateContent = await fs.readFile(templatePath, 'utf8');
+        // Read both templates
+        const template1Path = path.join(__dirname, '../templates/tratativaFolha1.hbs');
+        const template2Path = path.join(__dirname, '../templates/tratativaFolha2.hbs');
+        const template1Content = await fs.readFile(template1Path, 'utf8');
+        const template2Content = await fs.readFile(template2Path, 'utf8');
         
         // Map the frontend data to template format
         const templateData = mapDataToTemplate(req.body);
         
-        // Compila e renderiza o template
-        const template = handlebars.compile(templateContent);
-        const html = template(templateData);
+        // Compile and render both templates
+        const template1 = handlebars.compile(template1Content);
+        const template2 = handlebars.compile(template2Content);
+        const html1 = template1(templateData);
+        const html2 = template2(templateData);
         
-        res.send(html);
+        // Create combined HTML for PDF generation
+        const combinedHTML = createCombinedHTML(html1, html2, false);
+        
+        res.send(combinedHTML);
     } catch (error) {
         console.error('Erro ao gerar documento:', error);
         res.status(500).send('Erro ao gerar documento');
