@@ -155,12 +155,18 @@ app.get('/preview1', async (req, res) => {
         const template1Path = path.join(__dirname, '../templates/tratativaFolha1.hbs');
         const template1Content = await fs.readFile(template1Path, 'utf8');
         
-        // Generate mock data
+        // Generate mock data with complete infraction information
         const mockData = {
             ...FIXED_VALUES,
             ...generateMockData(),
             dataFormatada: formatDate(new Date()),
-            cpf: '123.456.789-10'
+            cpf: '123.456.789-10',
+            infracao_cometida: 'Excesso de Velocidade',
+            valor_praticado: '19',
+            valor_limite: '15',
+            metrica: 'km/h',
+            data_infracao: '2025-02-28',
+            hora_infracao: '12:50'
         };
         
         // Compile and render template
@@ -181,12 +187,18 @@ app.get('/preview2', async (req, res) => {
         const template2Path = path.join(__dirname, '../templates/tratativaFolha2.hbs');
         const template2Content = await fs.readFile(template2Path, 'utf8');
         
-        // Generate mock data
+        // Generate mock data with complete infraction information
         const mockData = {
             ...FIXED_VALUES,
             ...generateMockData(),
             dataFormatada: formatDate(new Date()),
-            cpf: '123.456.789-10'
+            cpf: '123.456.789-10',
+            infracao_cometida: 'Excesso de Velocidade',
+            valor_praticado: '19',
+            valor_limite: '15',
+            metrica: 'km/h',
+            data_infracao: '2025-02-28',
+            hora_infracao: '12:50'
         };
         
         // Compile and render template
