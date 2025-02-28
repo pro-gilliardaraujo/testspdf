@@ -330,16 +330,16 @@
                 <div class="header">
                     <table class="header-table">
                         <tr>
-                            <td class="title">Título: {{titulo}}</td>
-                            <td class="anexo">{{anexo}}</td>
+                            <td class="title">Título: FOR_012_Medida Disciplinar</td>
+                            <td class="anexo">Anexo</td>
                             <td class="doc-number">Nº Documento</td>
                             <td class="logo" rowspan="2">
-                                <img src="{{logoUrl}}" alt="Logo IB" class="logo-img">
+                                <img src="assets/images/logo.png" alt="Logo IB" class="logo-img">
                             </td>
                         </tr>
                         <tr>
-                            <td>Tipo de Documento: {{tipoDocumento}}</td>
-                            <td>{{codigoDocumento}}</td>
+                            <td>Tipo de Documento: </td>
+                            <td>PRO_003</td>
                             <td><strong>{{numero_documento}}</strong></td>
                         </tr>
                     </table>
@@ -399,9 +399,10 @@
 
                 <!-- Texto Legal -->
                 <div class="legal-text">
-                    {{#each textosLegais}}
-                        <p>{{this}}</p>
-                    {{/each}}
+                        <p>Lembramos que caso haja incidência na mesma falta, será penalizado(a), conforme a CONSOLIDAÇÃO DAS LEIS TRABALHISTAS e o procedimento disciplinar da empresa.
+
+Esclarecemos que, a reiteração no cometimento de irregularidades autoriza a rescisão do contrato de trabalho por justa causa, razão pela qual esperamos que evite a reincidência da não conformidade, para que não tenhamos no futuro, de tomar medidas que são facultadas por lei à empresa.</p>
+                    
                 </div>
 
                 <!-- Evidências -->
@@ -410,7 +411,7 @@
                         <div class="evidence-images">
                             {{#each evidencias}}
                                 <div class="evidence-image-box">
-                                    <img src="{{this.url}}" alt="Evidência {{@index}}" class="evidence-img">
+                                    <img src="{{evidenceImgUrl}}" class="evidence-img">
                                 </div>
                             {{/each}}
                         </div>

@@ -220,16 +220,16 @@
             <div class="header">
                 <table class="header-table">
                     <tr>
-                        <td class="title">Título: {{titulo}}</td>
-                        <td class="anexo">{{anexo}}</td>
+                        <td class="title">Título: FOR_116_Comunicado_Advertência_Suspensão</td>
+                        <td class="anexo">Anexo</td>
                         <td class="doc-number">Nº Documento</td>
                         <td class="logo" rowspan="2">
-                            <img src="{{logoUrl}}" alt="Logo IB" class="logo-img">
+                            <img src="assets/images/logo.png" alt="Logo IB" class="logo-img">
                         </td>
                     </tr>
                     <tr>
-                        <td>Tipo de Documento: {{tipoDocumento}}</td>
-                        <td>{{codigoDocumento}}</td>
+                        <td>Tipo de Documento: </td>
+                        <td>PRO_003</td>
                         <td><strong>{{numero_documento}}</strong></td>
                     </tr>
                 </table>
@@ -250,6 +250,8 @@
                     </div>
                     <div class="option">
                         <div class="checkbox{{#if (eq tipo_medida 'P3')}} checked{{/if}}"></div>
+                        <div class="checkbox{{#if (eq tipo_medida 'P4')}} checked{{/if}}"></div>
+                        <div class="checkbox{{#if (eq tipo_medida 'P5')}} checked{{/if}}"></div>
                         <span>Suspenso pelo prazo de ________ dias, a partir do dia ____/____/________, com retorno ao trabalho no próximo dia ____/____/________.</span>
                     </div>
                 </div>
