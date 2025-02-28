@@ -48,7 +48,7 @@ const FIXED_VALUES = {
     anexo: 'Anexo',
     tipoDocumento: 'Controlado',
     codigoDocumento: 'PRO_003',
-    logoUrl: '/assets/images/logo.png',
+    logoUrl: path.join('/assets/images', 'logo.png'),
     textoNotificacao: 'Pelo presente o notificamos que nesta data está recebendo uma medida disciplinar, em razão da não conformidade abaixo discriminada.',
     textosLegais: [
         'Lembramos que caso haja incidência na mesma falta, será penalizado(a), conforme a CONSOLIDAÇÃO DAS LEIS TRABALHISTAS e o procedimento disciplinar da empresa.',
@@ -103,20 +103,19 @@ function mapDataToTemplate(frontendData) {
 
     return {
         ...FIXED_VALUES,
-        numeroDocumento: frontendData.numero_documento,
-        nome: frontendData.nome_funcionario,
+        numero_documento: frontendData.numero_documento,
+        nome_funcionario: frontendData.nome_funcionario,
         cpf: frontendData.cpf,
         dataFormatada: formatDate(new Date()),
         funcao: frontendData.funcao,
         setor: frontendData.setor,
-        codigoInfracao: frontendData.codigo_infracao,
+        codigo_infracao: frontendData.codigo_infracao,
         descricaoInfracao,
-        dataOcorrencia: frontendData.data_infracao,
-        horaOcorrencia: frontendData.hora_infracao,
-        tipoMedida: frontendData.tipo_medida,
-        codigoMedida: frontendData.penalidade_aplicada?.split(' ')[0] || '',
-        descricaoMedida: frontendData.penalidade_aplicada?.split(' ').slice(1).join(' ') || '',
-        nomeLider: frontendData.nome_lider,
+        data_infracao: frontendData.data_infracao,
+        hora_infracao: frontendData.hora_infracao,
+        tipo_medida: frontendData.tipo_medida,
+        penalidade_aplicada: frontendData.penalidade_aplicada,
+        nome_lider: frontendData.nome_lider,
         evidencias,
         informacoesEvidencia
     };
@@ -196,16 +195,13 @@ app.get('/preview1', async (req, res) => {
         const template1Path = path.join(__dirname, '../templates/tratativaFolha1.hbs');
         const template1Content = await fs.readFile(template1Path, 'utf8');
         
-        // Generate mock data with complete infraction information
+        // Generate mock data with basic infraction information
         const mockData = {
             ...FIXED_VALUES,
             ...generateMockData(),
             dataFormatada: formatDate(new Date()),
             cpf: '123.456.789-10',
             infracao_cometida: 'Excesso de Velocidade',
-            valor_praticado: '19',
-            valor_limite: '15',
-            metrica: 'km/h',
             data_infracao: '2025-02-28',
             hora_infracao: '12:50'
         };
@@ -300,34 +296,40 @@ app.get('/generate-test', async (req, res) => {
         // Create mock data with complete information
         const mockData = {
             ...FIXED_VALUES,
-            numeroDocumento: 'DOC-2024-001',
-            nome: 'João da Silva',
+            numero_documento: 'DOC-2024-001',
+            nome_funcionario: 'João da Silva',
             cpf: '123.456.789-10',
             dataFormatada: formatDate(new Date()),
             funcao: 'Motorista',
             setor: 'Logística',
-            codigoInfracao: 'INF-001',
+            codigo_infracao: 'INF-001',
             infracao_cometida: 'Excesso de Velocidade',
             valor_praticado: '19',
             valor_limite: '15',
             metrica: 'km/h',
             data_infracao: '2025-02-28',
             hora_infracao: '12:50',
-            tipoMedida: 'Advertido',
+            tipo_medida: 'Advertido',
             penalidade_aplicada: 'ADV-001 Advertência por escrito',
             nome_lider: 'Maria Supervisora',
-            evidence1_url: '/assets/images/evidence1.jpg',
-            evidence2_url: '/assets/images/evidence2.jpg'
+            evidence1_url: path.join('/assets/images', 'evidenceexample.png'),
+            evidence2_url: path.join('/assets/images', 'evidenceexample.png')
         };
+
+        // Create separate data for each template
+        const template1Data = {
+            ...mockData,
+            // Override descricaoInfracao to show only basic text in Folha 1
+            descricaoInfracao: mockData.infracao_cometida
+        };
+
+        const template2Data = mapDataToTemplate(mockData);
         
-        // Map the mock data to template format
-        const templateData = mapDataToTemplate(mockData);
-        
-        // Compile and render both templates
+        // Compile and render both templates with their specific data
         const template1 = handlebars.compile(template1Content);
         const template2 = handlebars.compile(template2Content);
-        const html1 = template1(templateData);
-        const html2 = template2(templateData);
+        const html1 = template1(template1Data);
+        const html2 = template2(template2Data);
         
         // Generate individual PDFs
         const pdf1 = await generatePDFFromHTML(html1);
