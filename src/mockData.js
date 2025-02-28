@@ -80,7 +80,7 @@ function generateRandomMetrics() {
     };
 }
 
-// Main function to generate mock data
+// Main function to generate mock data with field names consistent with the templates
 function generateMockData() {
     const metrics = generateRandomMetrics();
     const infracao = getRandomItem(infracoes);
@@ -89,29 +89,33 @@ function generateMockData() {
     const lider = getRandomItem(nomes.filter(nome => nome !== funcionario));
     
     return {
-        numeroDocumento: generateNumeroDocumento(),
-        nome: funcionario,
+        numero_documento: generateNumeroDocumento(),
+        nome_funcionario: funcionario,
+        cpf: '123.456.789-10',
         funcao: getRandomItem(funcoes),
         setor: getRandomItem(setores),
-        codigoInfracao: infracao.codigo,
-        descricaoInfracao: infracao.descricao,
-        dataOcorrencia: generateRandomDate(),
-        horaOcorrencia: generateRandomTime(),
-        codigoMedida: penalidade.codigo,
-        descricaoMedida: penalidade.descricao,
+        codigo_infracao: infracao.codigo,
+        infracao_cometida: infracao.descricao,
+        data_infracao: generateRandomDate(),
+        hora_infracao: generateRandomTime(),
+        tipo_medida: penalidade.codigo,
+        penalidade_aplicada: penalidade.descricao,
+        // Adicionando as métricas separadamente
+        valor_praticado: metrics.praticado,
+        valor_limite: metrics.limite,
+        metrica: metrics.unidade,
         evidencias: [
-            {
-                url: '/assets/images/evidenceexample.png'
-            }
+            { url: '/assets/images/evidenceexample.png' }
         ],
         informacoesEvidencia: [
             `Valor registrado: ${metrics.praticado}${metrics.unidade}`,
             `Limite permitido: ${metrics.limite}${metrics.unidade}`
         ],
-        nomeLider: lider
+        nome_lider: lider
     };
 }
 
+
 module.exports = {
     generateMockData
-}; 
+};

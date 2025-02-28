@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=210mm, initial-scale=1.0">
     <title>Medida Disciplinar</title>
     <style>
         @page {
@@ -120,11 +120,11 @@
         }
 
         /* Bordas específicas para cada coluna */
-        .occurrence-row > div:nth-child(2), /* código_ocorrencia */
-        .occurrence-row > div:nth-child(3), /* descricao_ocorrencia */
-        .occurrence-row > div:nth-child(4), /* "Em:" */
-        .occurrence-row > div:nth-child(5), /* data_ocorrencia */
-        .occurrence-row > div:nth-child(6) /* "às:" */ {
+        .occurrence-row > div:nth-child(2),
+        .occurrence-row > div:nth-child(3),
+        .occurrence-row > div:nth-child(4),
+        .occurrence-row > div:nth-child(5),
+        .occurrence-row > div:nth-child(6) {
             border-left: 1px solid black;
         }
 
@@ -250,7 +250,6 @@
         }
 
         .signature-header {
-           
             padding: 5px;
             text-align: center;
             border-bottom: 1px solid black;
@@ -341,24 +340,22 @@
                         <tr>
                             <td>Tipo de Documento: {{tipoDocumento}}</td>
                             <td>{{codigoDocumento}}</td>
-                            <td><strong>{{numeroDocumento}}</strong></td>
+                            <td><strong>{{numero_documento}}</strong></td>
                         </tr>
                     </table>
                 </div>
 
                 <!-- Grid de identificação -->
                 <div class="identification-section">
-                    <!-- Linha 1: Nome e Data -->
                     <div class="name-date-row">
                         <div class="employee-name">
-                            <p>Sr.(a) {{nome}}</p>
+                            <p>Sr.(a) {{nome_funcionario}}</p>
                         </div>
                         <div class="date-section">
                             <p>{{dataFormatada}}</p>
                         </div>
                     </div>
                     
-                    <!-- Linha 2: Função e Setor -->
                     <div class="function-sector-row">
                         <div class="function-info">
                             <p>Função: {{funcao}}</p>
@@ -368,7 +365,6 @@
                         </div>
                     </div>
                     
-                    <!-- Linha 3: Texto de notificação -->
                     <div class="notification-text">
                         <p>{{textoNotificacao}}</p>
                     </div>
@@ -380,12 +376,12 @@
                     <div class="occurrence-content">
                         <div class="occurrence-row">
                             <div><strong>Código Infração</strong></div>
-                            <div>{{codigoInfracao}}</div>
-                            <div>{{descricaoInfracao}}</div>
+                            <div>{{codigo_infracao}}</div>
+                            <div>{{infracao_cometida}}</div>
                             <div><strong>Em:</strong></div>
-                            <div>{{dataOcorrencia}}</div>
+                            <div>{{data_infracao}}</div>
                             <div><strong>às:</strong></div>
-                            <div>{{horaOcorrencia}}</div>
+                            <div>{{hora_infracao}}</div>
                         </div>
                     </div>
                 </div>
@@ -395,8 +391,8 @@
                     <div class="disciplinary-header"><strong>Medida Disciplinar</strong></div>
                     <div class="disciplinary-content">
                         <div class="measure-row" style="display: flex;">
-                            <div style="flex: 15%;">{{codigoMedida}}</div>
-                            <div style="flex: 85%;">{{descricaoMedida}}</div>
+                            <div style="flex: 15%;">{{tipo_medida}}</div>
+                            <div style="flex: 85%;">{{penalidade_aplicada}}</div>
                         </div>
                     </div>
                 </div>
@@ -438,13 +434,13 @@
                         </tr>
                         <tr>
                             <td class="first-col">Funcionário</td>
-                            <td class="name-col">{{nome}}</td>
+                            <td class="name-col">{{nome_funcionario}}</td>
                             <td class="date-col"></td>
                             <td class="signature-col"></td>
                         </tr>
                         <tr>
                             <td class="first-col">Líder</td>
-                            <td class="name-col">{{nomeLider}}</td>
+                            <td class="name-col">{{nome_lider}}</td>
                             <td class="date-col"></td>
                             <td class="signature-col"></td>
                         </tr>
@@ -460,4 +456,4 @@
         </div>
     </div>
 </body>
-</html> 
+</html>

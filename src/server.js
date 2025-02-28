@@ -68,7 +68,7 @@ handlebars.registerHelper('formatCPF', function(cpf) {
 
 // Fixed/static values
 const FIXED_VALUES = {
-    titulo: 'ACR-003_Medida_Disciplinar',
+    titulo: 'ACR-003_Medida Disciplinar',
     anexo: 'Anexo',
     tipoDocumento: 'Controlado',
     codigoDocumento: 'PRO_003',
@@ -104,15 +104,6 @@ function formatInfractionText(infracao, valor_praticado, valor_limite, metrica, 
 
 // Function to map frontend data to template data
 function mapDataToTemplate(frontendData) {
-    // Get evidence information
-    const evidencias = [];
-    const informacoesEvidencia = [];
-    
-    if (frontendData.evidence1_url) evidencias.push({ url: frontendData.evidence1_url });
-    if (frontendData.evidence2_url) evidencias.push({ url: frontendData.evidence2_url });
-    if (frontendData.evidence3_url) evidencias.push({ url: frontendData.evidence3_url });
-    
-    // Format infraction text if all required values are present
     let descricaoInfracao = frontendData.infracao_cometida;
     if (frontendData.valor_praticado && frontendData.valor_limite && frontendData.metrica) {
         descricaoInfracao = formatInfractionText(
@@ -134,24 +125,29 @@ function mapDataToTemplate(frontendData) {
         funcao: frontendData.funcao,
         setor: frontendData.setor,
         codigo_infracao: frontendData.codigo_infracao,
-        descricaoInfracao,
+        infracao_cometida: descricaoInfracao,
         data_infracao: frontendData.data_infracao,
         hora_infracao: frontendData.hora_infracao,
         tipo_medida: frontendData.tipo_medida,
         penalidade_aplicada: frontendData.penalidade_aplicada,
         nome_lider: frontendData.nome_lider,
-        evidencias,
-        informacoesEvidencia
+        evidencias: frontendData.evidencias,
+        informacoesEvidencia: frontendData.informacoesEvidencia,
+        // Inclua as métricas separadamente para uso no template
+        valor_praticado: frontendData.valor_praticado,
+        valor_limite: frontendData.valor_limite,
+        metrica: frontendData.metrica
     };
 }
 
-// Helper function to create combined HTML
+
+// Helper function to create combined HTML (para mesclar as duas folhas, se necessário)
 function createCombinedHTML(html1, html2, isPreview = false) {
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=210mm, initial-scale=1.0">
     <title>Documento Disciplinar</title>
     <style>
         @media print {
@@ -178,29 +174,16 @@ async function waitForImagesWithTimeout(page, timeout = 5000) {
     logger.info('Starting image load wait process', { timeout });
     try {
         await page.evaluate(async (timeout) => {
-            const selectors = Array.from(document.getElementsByTagName('img'));
-            logger.info('Found images to load', { count: selectors.length });
-            
+            const images = Array.from(document.getElementsByTagName('img'));
             await Promise.race([
-                Promise.all(selectors.map(img => {
-                    if (img.complete) {
-                        console.log('Image already loaded:', img.src);
-                        return Promise.resolve();
-                    }
+                Promise.all(images.map(img => {
+                    if (img.complete) return Promise.resolve();
                     return new Promise((resolve, reject) => {
-                        img.addEventListener('load', () => {
-                            console.log('Image loaded:', img.src);
-                            resolve();
-                        });
-                        img.addEventListener('error', () => {
-                            console.error('Image failed to load:', img.src);
-                            reject(new Error(`Failed to load image: ${img.src}`));
-                        });
+                        img.addEventListener('load', resolve);
+                        img.addEventListener('error', () => reject(new Error(`Failed to load image: ${img.src}`)));
                     });
                 })),
-                new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Image loading timeout')), timeout)
-                )
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Image loading timeout')), timeout))
             ]);
         }, timeout);
         logger.info('All images loaded successfully');
@@ -218,24 +201,24 @@ async function generatePDFFromHTML(html, templateName) {
     const page = await browser.newPage();
     
     try {
-        // Set viewport and emulate print media
-        await page.setViewport({ width: 794, height: 1123 }); // A4 dimensions in pixels
+        // Set viewport and emulate print media (dimensões aproximadas para A4 em pixels)
+        await page.setViewport({ width: 794, height: 1123 });
         await page.emulateMediaType('print');
         
-        // Set content and wait for network idle
+        // Set content and wait until the network is idle
         logger.info('Setting page content');
         await page.setContent(html, { 
             waitUntil: ['networkidle0', 'load', 'domcontentloaded'],
             timeout: 30000
         });
         
-        // Wait for images with timeout
+        // Wait for images to load
         const imagesLoaded = await waitForImagesWithTimeout(page);
         if (!imagesLoaded) {
             logger.warn('Some images may not have loaded properly');
         }
 
-        // Add small delay to ensure complete rendering
+        // Small delay to ensure complete rendering
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Generate PDF
@@ -268,15 +251,13 @@ async function mergePDFs(pdf1Buffer, pdf2Buffer) {
     const pdf1 = await PDFDocument.load(pdf1Buffer);
     const pdf2 = await PDFDocument.load(pdf2Buffer);
     
-    // Copy pages from both PDFs
-    const [pdf1Page] = await mergedPdf.copyPages(pdf1, [0]);
-    const [pdf2Page] = await mergedPdf.copyPages(pdf2, [0]);
+    // Copy pages from both PDFs (assumindo que cada template gera 1 página)
+    const [page1] = await mergedPdf.copyPages(pdf1, [0]);
+    const [page2] = await mergedPdf.copyPages(pdf2, [0]);
     
-    // Add pages to the new document
-    mergedPdf.addPage(pdf1Page);
-    mergedPdf.addPage(pdf2Page);
+    mergedPdf.addPage(page1);
+    mergedPdf.addPage(page2);
     
-    // Save the merged PDF
     return await mergedPdf.save();
 }
 
@@ -285,12 +266,11 @@ app.get('/preview1', async (req, res) => {
     try {
         logger.info('Starting preview1 route');
         
-        // Read template
         const template1Path = path.join(__dirname, '../templates/tratativaFolha1.hbs');
         const template1Content = await fs.readFile(template1Path, 'utf8');
         logger.info('Template 1 loaded successfully');
         
-        // Create mock data with complete information
+        // Cria dados mock para preview
         const mockData = {
             ...FIXED_VALUES,
             numero_documento: 'DOC-2024-001',
@@ -323,7 +303,6 @@ app.get('/preview1', async (req, res) => {
             hasEvidence: mockData.evidencias.length > 0 
         });
         
-        // Compile and render template
         const template1 = handlebars.compile(template1Content);
         const html1 = template1(mockData);
         logger.info('Template 1 rendered successfully');
@@ -343,12 +322,10 @@ app.get('/preview2', async (req, res) => {
     try {
         logger.info('Starting preview2 route');
         
-        // Read template
         const template2Path = path.join(__dirname, '../templates/tratativaFolha2.hbs');
         const template2Content = await fs.readFile(template2Path, 'utf8');
         logger.info('Template 2 loaded successfully');
         
-        // Use the same mock data structure as preview1
         const mockData = {
             ...FIXED_VALUES,
             numero_documento: 'DOC-2024-001',
@@ -381,7 +358,6 @@ app.get('/preview2', async (req, res) => {
             hasEvidence: mockData.evidencias.length > 0 
         });
         
-        // Log template data before compilation
         logger.info('Template 2 data check', {
             hasRequiredFields: {
                 nome_funcionario: !!mockData.nome_funcionario,
@@ -391,7 +367,6 @@ app.get('/preview2', async (req, res) => {
             }
         });
         
-        // Compile and render template
         const template2 = handlebars.compile(template2Content);
         const html2 = template2(mockData);
         logger.info('Template 2 rendered successfully');
@@ -409,29 +384,23 @@ app.get('/preview2', async (req, res) => {
 // Rota para gerar PDF com dados reais
 app.post('/generate', async (req, res) => {
     try {
-        // Read both templates
         const template1Path = path.join(__dirname, '../templates/tratativaFolha1.hbs');
         const template2Path = path.join(__dirname, '../templates/tratativaFolha2.hbs');
         const template1Content = await fs.readFile(template1Path, 'utf8');
         const template2Content = await fs.readFile(template2Path, 'utf8');
         
-        // Map the frontend data to template format
         const templateData = mapDataToTemplate(req.body);
         
-        // Compile and render both templates
         const template1 = handlebars.compile(template1Content);
         const template2 = handlebars.compile(template2Content);
         const html1 = template1(templateData);
         const html2 = template2(templateData);
         
-        // Generate individual PDFs
         const pdf1 = await generatePDFFromHTML(html1, 'tratativaFolha1.hbs');
         const pdf2 = await generatePDFFromHTML(html2, 'tratativaFolha2.hbs');
         
-        // Merge PDFs
         const mergedPdf = await mergePDFs(pdf1, pdf2);
         
-        // Send the merged PDF
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename=documento_disciplinar.pdf');
         res.send(Buffer.from(mergedPdf));
@@ -444,58 +413,24 @@ app.post('/generate', async (req, res) => {
 // Rota para testar geração de PDF com dados mock
 app.get('/generate-test', async (req, res) => {
     try {
-        // Read both templates
         const template1Path = path.join(__dirname, '../templates/tratativaFolha1.hbs');
         const template2Path = path.join(__dirname, '../templates/tratativaFolha2.hbs');
         const template1Content = await fs.readFile(template1Path, 'utf8');
         const template2Content = await fs.readFile(template2Path, 'utf8');
         
-        // Create mock data with complete information
-        const mockData = {
-            ...FIXED_VALUES,
-            numero_documento: 'DOC-2024-001',
-            nome_funcionario: 'João da Silva',
-            cpf: '123.456.789-10',
-            dataFormatada: formatDate(new Date()),
-            funcao: 'Motorista',
-            setor: 'Logística',
-            codigo_infracao: 'INF-001',
-            infracao_cometida: 'Excesso de Velocidade de 19km/h',
-            valor_praticado: '19',
-            valor_limite: '15',
-            metrica: 'km/h',
-            data_infracao: '27/02/2025',
-            hora_infracao: '12:50',
-            tipo_medida: 'P1',
-            penalidade_aplicada: 'ADV-001 Advertência por escrito',
-            nome_lider: 'Maria Supervisora',
-            evidencias: [
-                { url: '/assets/images/evidenceexample.png' }
-            ],
-            informacoesEvidencia: [
-                'Valor registrado: 19km/h',
-                'Limite permitido: 15km/h'
-            ],
-            textosLegais: [
-                'Lembramos que caso haja incidência na mesma falta, será penalizado(a), conforme a CONSOLIDAÇÃO DAS LEIS TRABALHISTAS e o procedimento disciplinar da empresa.',
-                'Esclarecemos que, a reiteração no cometimento de irregularidades autoriza a rescisão do contrato de trabalho por justa causa, razão pela qual esperamos que evite a reincidência da não conformidade, para que não tenhamos no futuro, de tomar medidas que são facultadas por lei à empresa.'
-            ]
-        };
+        const mockData = { ...FIXED_VALUES, ...generateMockData() };
 
-        // Compile and render both templates with the same data
+        
         const template1 = handlebars.compile(template1Content);
         const template2 = handlebars.compile(template2Content);
         const html1 = template1(mockData);
         const html2 = template2(mockData);
         
-        // Generate individual PDFs
         const pdf1 = await generatePDFFromHTML(html1, 'tratativaFolha1.hbs');
         const pdf2 = await generatePDFFromHTML(html2, 'tratativaFolha2.hbs');
         
-        // Merge PDFs
         const mergedPdf = await mergePDFs(pdf1, pdf2);
         
-        // Send the merged PDF
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename=documento_disciplinar_teste.pdf');
         res.send(Buffer.from(mergedPdf));
@@ -505,7 +440,6 @@ app.get('/generate-test', async (req, res) => {
     }
 });
 
-// Update server startup message
 app.listen(port, () => {
     console.log(`Servidor rodando em http://localhost:${port}`);
     console.log(`Para ver os previews, acesse:`);
@@ -513,4 +447,4 @@ app.listen(port, () => {
     console.log(`- Página 2: http://localhost:${port}/preview2`);
     console.log(`- PDF de teste: http://localhost:${port}/generate-test`);
     console.log('Pressione Ctrl+C para parar o servidor');
-}); 
+});
