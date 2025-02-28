@@ -12,11 +12,11 @@ const port = 3000;
 // Get the absolute path to the workspace root
 const workspaceRoot = path.join(__dirname, '..');
 
-// Middleware to parse JSON bodies
-app.use(express.json());
-
 // Serve static files from assets directory
 app.use('/assets', express.static(path.join(workspaceRoot, 'assets')));
+
+// Middleware to parse JSON bodies
+app.use(express.json());
 
 // Register Handlebars helpers
 handlebars.registerHelper('eq', function(a, b) {
@@ -303,33 +303,33 @@ app.get('/generate-test', async (req, res) => {
             funcao: 'Motorista',
             setor: 'Logística',
             codigo_infracao: 'INF-001',
-            infracao_cometida: 'Excesso de Velocidade',
+            infracao_cometida: 'Excesso de Velocidade de 19km/h',
             valor_praticado: '19',
             valor_limite: '15',
             metrica: 'km/h',
-            data_infracao: '2025-02-28',
+            data_infracao: '27/02/2025',
             hora_infracao: '12:50',
-            tipo_medida: 'Advertido',
+            tipo_medida: 'P1',
             penalidade_aplicada: 'ADV-001 Advertência por escrito',
             nome_lider: 'Maria Supervisora',
-            evidence1_url: path.join('/assets/images', 'evidenceexample.png'),
-            evidence2_url: path.join('/assets/images', 'evidenceexample.png')
+            evidencias: [
+                { url: '/assets/images/evidenceexample.png' }
+            ],
+            informacoesEvidencia: [
+                'Valor registrado: 19km/h',
+                'Limite permitido: 15km/h'
+            ],
+            textosLegais: [
+                'Lembramos que caso haja incidência na mesma falta, será penalizado(a), conforme a CONSOLIDAÇÃO DAS LEIS TRABALHISTAS e o procedimento disciplinar da empresa.',
+                'Esclarecemos que, a reiteração no cometimento de irregularidades autoriza a rescisão do contrato de trabalho por justa causa, razão pela qual esperamos que evite a reincidência da não conformidade, para que não tenhamos no futuro, de tomar medidas que são facultadas por lei à empresa.'
+            ]
         };
 
-        // Create separate data for each template
-        const template1Data = {
-            ...mockData,
-            // Override descricaoInfracao to show only basic text in Folha 1
-            descricaoInfracao: mockData.infracao_cometida
-        };
-
-        const template2Data = mapDataToTemplate(mockData);
-        
-        // Compile and render both templates with their specific data
+        // Compile and render both templates with the same data
         const template1 = handlebars.compile(template1Content);
         const template2 = handlebars.compile(template2Content);
-        const html1 = template1(template1Data);
-        const html2 = template2(template2Data);
+        const html1 = template1(mockData);
+        const html2 = template2(mockData);
         
         // Generate individual PDFs
         const pdf1 = await generatePDFFromHTML(html1);
