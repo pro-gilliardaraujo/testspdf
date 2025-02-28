@@ -1,4 +1,4 @@
-const generatePDF = require('./generatePDF');
+const generatePDF = require('../generate-pdf');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -11,7 +11,7 @@ async function example() {
             tipoDocumento: 'Controlado',
             codigoDocumento: 'PRO_003',
             numeroDocumento: '1099',
-            logoUrl: path.join(__dirname, '../logo.png'),
+            logoUrl: '/assets/images/logo.png',
             nome: 'João Silva',
             dataFormatada: '24 de fevereiro de 2024',
             funcao: 'Desenvolvedor',
@@ -29,33 +29,14 @@ async function example() {
             ],
             evidencias: [
                 {
-                    url: 'https://kjlwqezxzqjfhacmjhbh.supabase.co/storage/v1/object/public/sourcefiles//Captura%20de%20tela%202025-02-24%20133232.png'
+                    url: '/assets/images/evidenceexample.png'
                 }
             ],
             informacoesEvidencia: [
                 'Valor registrado: 19km/h',
                 'Limite permitido: 15km/h'
             ],
-            assinaturas: [
-                {
-                    cargo: 'Funcionário',
-                    nome: 'João Silva',
-                    data: '',
-                    assinatura: ''
-                },
-                {
-                    cargo: 'Líder',
-                    nome: 'Maria Gestora',
-                    data: '',
-                    assinatura: ''
-                },
-                {
-                    cargo: 'Testemunha',
-                    nome: '',
-                    data: '',
-                    assinatura: ''
-                }
-            ]
+            nomeLider: 'Maria Gestora'
         };
 
         // Gera o PDF
