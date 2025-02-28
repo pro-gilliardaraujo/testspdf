@@ -288,11 +288,70 @@ app.post('/generate', async (req, res) => {
     }
 });
 
+// Rota para testar geração de PDF com dados mock
+app.get('/generate-test', async (req, res) => {
+    try {
+        // Read both templates
+        const template1Path = path.join(__dirname, '../templates/tratativaFolha1.hbs');
+        const template2Path = path.join(__dirname, '../templates/tratativaFolha2.hbs');
+        const template1Content = await fs.readFile(template1Path, 'utf8');
+        const template2Content = await fs.readFile(template2Path, 'utf8');
+        
+        // Create mock data with complete information
+        const mockData = {
+            ...FIXED_VALUES,
+            numeroDocumento: 'DOC-2024-001',
+            nome: 'João da Silva',
+            cpf: '123.456.789-10',
+            dataFormatada: formatDate(new Date()),
+            funcao: 'Motorista',
+            setor: 'Logística',
+            codigoInfracao: 'INF-001',
+            infracao_cometida: 'Excesso de Velocidade',
+            valor_praticado: '19',
+            valor_limite: '15',
+            metrica: 'km/h',
+            data_infracao: '2025-02-28',
+            hora_infracao: '12:50',
+            tipoMedida: 'Advertido',
+            penalidade_aplicada: 'ADV-001 Advertência por escrito',
+            nome_lider: 'Maria Supervisora',
+            evidence1_url: '/assets/images/evidence1.jpg',
+            evidence2_url: '/assets/images/evidence2.jpg'
+        };
+        
+        // Map the mock data to template format
+        const templateData = mapDataToTemplate(mockData);
+        
+        // Compile and render both templates
+        const template1 = handlebars.compile(template1Content);
+        const template2 = handlebars.compile(template2Content);
+        const html1 = template1(templateData);
+        const html2 = template2(templateData);
+        
+        // Generate individual PDFs
+        const pdf1 = await generatePDFFromHTML(html1);
+        const pdf2 = await generatePDFFromHTML(html2);
+        
+        // Merge PDFs
+        const mergedPdf = await mergePDFs(pdf1, pdf2);
+        
+        // Send the merged PDF
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename=documento_disciplinar_teste.pdf');
+        res.send(Buffer.from(mergedPdf));
+    } catch (error) {
+        console.error('Erro ao gerar documento de teste:', error);
+        res.status(500).send('Erro ao gerar documento de teste');
+    }
+});
+
 // Update server startup message
 app.listen(port, () => {
     console.log(`Servidor rodando em http://localhost:${port}`);
     console.log(`Para ver os previews, acesse:`);
     console.log(`- Página 1: http://localhost:${port}/preview1`);
     console.log(`- Página 2: http://localhost:${port}/preview2`);
+    console.log(`- PDF de teste: http://localhost:${port}/generate-test`);
     console.log('Pressione Ctrl+C para parar o servidor');
 }); 
