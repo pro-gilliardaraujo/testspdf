@@ -46,7 +46,6 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || 'localhost';
 
 // HTTPS configuration
 const httpsOptions = {
@@ -58,9 +57,9 @@ const httpsOptions = {
 const server = https.createServer(httpsOptions, app);
 
 // Start server
-server.listen(PORT, HOST, () => {
-    logger.info(`Server started on https://${HOST}:${PORT}`);
-    console.log(`🚀 Server running on https://${HOST}:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Server started on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });
 
 // Graceful shutdown
