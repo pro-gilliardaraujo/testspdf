@@ -1,0 +1,130 @@
+INSTRUÇÕES PARA USO DA API DE GERAÇÃO DE DOCUMENTOS
+=================================================
+
+1. ENDPOINT
+-----------
+URL: https://iblogistica.ddns.net:3000/api/tratativa/generate
+Método: POST
+Content-Type: application/json
+
+2. ESTRUTURA DO BODY
+--------------------
+{
+  "id": "1",                    // ID da tratativa no banco
+  "templateData": {
+    // DADOS GERAIS
+    "DOP_NUMERO_DOCUMENTO": "1234",                  // Número do documento
+    "DOP_NOME": "José da Silva Santos",              // Nome completo do colaborador
+    "DOP_FUNCAO": "Motorista Carreteiro",           // Função/cargo
+    "DOP_SETOR": "Operacional",                     // Setor
+    
+    // DADOS DA INFRAÇÃO
+    "DOP_DESC_INFRACAO": "Descrição detalhada da infração cometida",
+    "DOP_DATA_INFRACAO": "28/02/2025",             // Formato: DD/MM/YYYY
+    "DOP_HORA_INFRACAO": "08:30",                  // Formato: HH:mm
+    "DOP_VALOR_REGISTRADO": "0",                   // Valor medido
+    "DOP_METRICA": "ocorrências",                  // Unidade de medida
+    "DOP_VALOR_LIMITE": "0",                       // Valor limite permitido
+    
+    // DADOS DA PENALIDADE
+    "DOP_DATA_EXTENSA": "quarta-feira, 28 de fevereiro de 2025",  // Data por extenso
+    "DOP_COD_INFRACAO": "P2-001",                 // Código da infração
+    "DOP_GRAU_PENALIDADE": "P2",                  // Grau: P1, P2, P3, etc
+    "DOP_DESC_PENALIDADE": "Advertência Escrita",  // Descrição da penalidade
+    "DOP_IMAGEM": "https://url-da-imagem.jpg",    // URL pública da imagem
+    "DOP_LIDER": "Carlos Alberto Pereira",         // Nome do líder/supervisor
+    "DOP_CPF": "123.456.789-00",                  // CPF formatado
+    "tipo_penalidade": "Advertência"              // "Advertência" ou "Suspensão"
+  }
+}
+
+3. REGRAS IMPORTANTES
+--------------------
+- tipo_penalidade: aceita apenas "Advertência" ou "Suspensão"
+- Datas: usar formato DD/MM/YYYY
+- Horários: usar formato HH:mm
+- CPF: incluir pontos e traço
+- Imagem: URL deve ser acessível publicamente
+- ID: deve existir no banco de dados
+
+4. EXEMPLO PARA ADVERTÊNCIA
+--------------------------
+{
+  "id": "1",
+  "templateData": {
+    "DOP_NUMERO_DOCUMENTO": "1234",
+    "DOP_NOME": "José da Silva Santos",
+    "DOP_FUNCAO": "Motorista Carreteiro",
+    "DOP_SETOR": "Operacional",
+    "DOP_DESC_INFRACAO": "Não realizou a inspeção veicular diária conforme procedimento",
+    "DOP_DATA_INFRACAO": "28/02/2025",
+    "DOP_HORA_INFRACAO": "08:30",
+    "DOP_VALOR_REGISTRADO": "0",
+    "DOP_METRICA": "ocorrências",
+    "DOP_VALOR_LIMITE": "0",
+    "DOP_DATA_EXTENSA": "quarta-feira, 28 de fevereiro de 2025",
+    "DOP_COD_INFRACAO": "P2-001",
+    "DOP_GRAU_PENALIDADE": "P2",
+    "DOP_DESC_PENALIDADE": "Advertência Escrita",
+    "DOP_IMAGEM": "https://iblogistica.ddns.net/imagens/checklist.jpg",
+    "DOP_LIDER": "Carlos Alberto Pereira",
+    "DOP_CPF": "123.456.789-00",
+    "tipo_penalidade": "Advertência"
+  }
+}
+
+5. EXEMPLO PARA SUSPENSÃO
+------------------------
+{
+  "id": "1",
+  "templateData": {
+    "DOP_NUMERO_DOCUMENTO": "1235",
+    "DOP_NOME": "José da Silva Santos",
+    "DOP_FUNCAO": "Motorista Carreteiro",
+    "DOP_SETOR": "Operacional",
+    "DOP_DESC_INFRACAO": "Excesso de velocidade acima de 20km/h do permitido",
+    "DOP_DATA_INFRACAO": "28/02/2025",
+    "DOP_HORA_INFRACAO": "14:30",
+    "DOP_VALOR_REGISTRADO": "80",
+    "DOP_METRICA": "km/h",
+    "DOP_VALOR_LIMITE": "60",
+    "DOP_DATA_EXTENSA": "quarta-feira, 28 de fevereiro de 2025",
+    "DOP_COD_INFRACAO": "P3-001",
+    "DOP_GRAU_PENALIDADE": "P3",
+    "DOP_DESC_PENALIDADE": "Suspensão de 3 dias",
+    "DOP_IMAGEM": "https://iblogistica.ddns.net/imagens/velocidade.jpg",
+    "DOP_LIDER": "Carlos Alberto Pereira",
+    "DOP_CPF": "123.456.789-00",
+    "tipo_penalidade": "Suspensão"
+  }
+}
+
+6. RESPOSTA DA API
+-----------------
+Sucesso:
+{
+  "status": "success",
+  "message": "Documento gerado e enviado com sucesso",
+  "url": "https://url-do-documento-no-supabase.pdf"
+}
+
+Erro:
+{
+  "status": "error",
+  "message": "Mensagem detalhada do erro"
+}
+
+7. COMO TESTAR
+-------------
+Usando cURL:
+curl -X POST https://iblogistica.ddns.net:3000/api/tratativa/generate \
+-H "Content-Type: application/json" \
+-d '{"id":"1","templateData":{...}}'
+
+Usando Postman:
+1. Criar nova request POST
+2. URL: https://iblogistica.ddns.net:3000/api/tratativa/generate
+3. Headers: Content-Type: application/json
+4. Body: Raw (JSON)
+5. Colar um dos exemplos acima
+6. Enviar request 
