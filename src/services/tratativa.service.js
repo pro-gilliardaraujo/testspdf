@@ -27,23 +27,24 @@ class TratativaService {
 
             // Preparar dados para o banco
             const dadosTratativa = {
-                numero_documento: dadosFormulario.numero_documento,
-                nome_colaborador: dadosFormulario.nome,
+                numero_tratativa: dadosFormulario.numero_documento,
+                funcionario: dadosFormulario.nome,
                 funcao: dadosFormulario.funcao,
                 setor: dadosFormulario.setor,
                 cpf: dadosFormulario.cpf,
-                descricao_infracao: dadosFormulario.descricao_infracao,
+
                 data_infracao: this.formatarDataParaBanco(dadosFormulario.data_infracao),
                 hora_infracao: dadosFormulario.hora_infracao,
-                valor_registrado: dadosFormulario.valor_registrado,
-                metrica: dadosFormulario.metrica,
-                valor_limite: dadosFormulario.valor_limite,
                 codigo_infracao: dadosFormulario.codigo_infracao,
-                grau_penalidade: dadosFormulario.grau_penalidade,
-                tipo_penalidade: dadosFormulario.tipo_penalidade,
-                descricao_penalidade: dadosFormulario.descricao_penalidade,
-                url_imagem: dadosFormulario.url_imagem,
+                descricao_infracao: dadosFormulario.descricao_infracao,
+                penalidade: dadosFormulario.tipo_penalidade,
+                texto_infracao: dadosFormulario.descricao_penalidade,
                 lider: dadosFormulario.lider,
+                valor_praticado: dadosFormulario.valor_registrado,
+                medida: dadosFormulario.metrica,
+                texto_limite: dadosFormulario.valor_limite,
+                mock: false,
+                status: 'Pendente',
                 created_at: new Date().toISOString()
             };
 
@@ -57,24 +58,24 @@ class TratativaService {
 
             // Preparar dados para o template do PDF
             const templateData = {
-                DOP_NUMERO_DOCUMENTO: data.numero_documento,
-                DOP_NOME: data.nome_colaborador,
+                DOP_NUMERO_DOCUMENTO: data.numero_tratativa,
+                DOP_NOME: data.funcionario,
                 DOP_FUNCAO: data.funcao,
                 DOP_SETOR: data.setor,
                 DOP_DESC_INFRACAO: data.descricao_infracao,
                 DOP_DATA_INFRACAO: dadosFormulario.data_infracao, // Mantém formato DD/MM/YYYY
                 DOP_HORA_INFRACAO: data.hora_infracao,
-                DOP_VALOR_REGISTRADO: data.valor_registrado,
-                DOP_METRICA: data.metrica,
-                DOP_VALOR_LIMITE: data.valor_limite,
+                DOP_VALOR_REGISTRADO: data.valor_praticado,
+                DOP_METRICA: data.medida,
+                DOP_VALOR_LIMITE: data.texto_limite,
                 DOP_DATA_EXTENSA: this.formatarDataExtensa(dadosFormulario.data_infracao),
                 DOP_COD_INFRACAO: data.codigo_infracao,
-                DOP_GRAU_PENALIDADE: data.grau_penalidade,
-                DOP_DESC_PENALIDADE: data.descricao_penalidade,
-                DOP_IMAGEM: data.url_imagem,
+                DOP_GRAU_PENALIDADE: data.codigo_infracao.split('-')[0], // Extrai P2 de P2-001
+                DOP_DESC_PENALIDADE: data.texto_infracao,
+                DOP_IMAGEM: dadosFormulario.url_imagem,
                 DOP_LIDER: data.lider,
-                DOP_CPF: data.cpf,
-                tipo_penalidade: data.tipo_penalidade
+                DOP_CPF: dadosFormulario.cpf,
+                tipo_penalidade: data.penalidade
             };
 
             logger.info('Tratativa criada com sucesso', {

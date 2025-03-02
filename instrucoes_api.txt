@@ -10,25 +10,24 @@ Content-Type: application/json
 2. ESTRUTURA DO BODY
 --------------------
 {
-    "numero_documento": "1234",                  // Número do documento
-    "nome": "José da Silva Santos",             // Nome completo do colaborador
+    "numero_documento": "1234",                  // Será salvo como numero_tratativa
+    "nome": "José da Silva Santos",             // Será salvo como funcionario
     "funcao": "Motorista Carreteiro",          // Função/cargo
     "setor": "Operacional",                    // Setor
-    "cpf": "123.456.789-00",                  // CPF com pontos e traço
+    "cpf": "123.456.789-00",                  // CPF com pontos e traço (usado apenas no PDF)
     
     // Dados da Infração
     "descricao_infracao": "Descrição detalhada da infração cometida",
     "data_infracao": "28/02/2025",            // Formato: DD/MM/YYYY
     "hora_infracao": "08:30",                 // Formato: HH:mm
-    "valor_registrado": "0",                  // Valor medido (string)
-    "metrica": "ocorrências",                 // Unidade de medida
-    "valor_limite": "0",                      // Valor limite permitido (string)
+    "valor_registrado": "0",                  // Será salvo como valor_praticado
+    "metrica": "ocorrências",                 // Será salvo como medida
+    "valor_limite": "0",                      // Será salvo como texto_limite
     
     // Dados da Penalidade
-    "codigo_infracao": "P2-001",             // Código da infração
-    "grau_penalidade": "P2",                 // Grau: P1, P2, P3, etc
-    "tipo_penalidade": "Advertência",        // "Advertência" ou "Suspensão"
-    "descricao_penalidade": "Advertência Escrita", // Descrição completa
+    "codigo_infracao": "P2-001",             // Código da infração (P2-001, P3-001, etc)
+    "tipo_penalidade": "Advertência",        // Será salvo como penalidade ("Advertência" ou "Suspensão")
+    "descricao_penalidade": "Advertência Escrita", // Será salvo como texto_infracao
     "url_imagem": "https://url-da-imagem.jpg", // URL pública da imagem
     "lider": "Carlos Alberto Pereira"         // Nome do líder/supervisor
 }
@@ -40,21 +39,25 @@ Content-Type: application/json
   * Geração da data por extenso
   * Conversão de tipos
   * Preparação dos dados para o PDF
+  * Extração do grau da penalidade do código (ex: P2 de P2-001)
+  * Adição automática de campos:
+    - status: "Pendente"
+    - mock: false
+    - created_at: timestamp atual
 
 - Campos Obrigatórios:
   * numero_documento
   * nome
   * funcao
   * setor
-  * cpf (com pontos e traço)
+  * cpf
   * descricao_infracao
-  * data_infracao (DD/MM/YYYY)
-  * hora_infracao (HH:mm)
+  * data_infracao
+  * hora_infracao
   * valor_registrado
   * metrica
   * valor_limite
   * codigo_infracao
-  * grau_penalidade
   * tipo_penalidade
   * descricao_penalidade
   * url_imagem
@@ -66,6 +69,7 @@ Content-Type: application/json
   * hora_infracao: deve estar no formato HH:mm
   * cpf: deve incluir pontos e traço (XXX.XXX.XXX-XX)
   * url_imagem: deve ser uma URL pública e acessível
+  * codigo_infracao: deve seguir o padrão "PX-YYY" onde X é o grau e YYY é o número
 
 4. EXEMPLO PARA ADVERTÊNCIA
 --------------------------
@@ -82,7 +86,6 @@ Content-Type: application/json
     "metrica": "ocorrências",
     "valor_limite": "0",
     "codigo_infracao": "P2-001",
-    "grau_penalidade": "P2",
     "tipo_penalidade": "Advertência",
     "descricao_penalidade": "Advertência Escrita",
     "url_imagem": "https://iblogistica.ddns.net/imagens/checklist.jpg",
@@ -104,7 +107,6 @@ Content-Type: application/json
     "metrica": "km/h",
     "valor_limite": "60",
     "codigo_infracao": "P3-001",
-    "grau_penalidade": "P3",
     "tipo_penalidade": "Suspensão",
     "descricao_penalidade": "Suspensão de 3 dias",
     "url_imagem": "https://iblogistica.ddns.net/imagens/velocidade.jpg",
@@ -152,9 +154,19 @@ Usando Postman:
 - Envie os dados exatamente como foram preenchidos no formulário
 - Use os mesmos nomes de campos especificados neste documento
 - O backend irá:
-  * Criar o registro no banco
+  * Criar o registro no banco com os nomes corretos dos campos
   * Formatar todos os dados necessários
   * Gerar os PDFs
   * Fazer o merge dos documentos
   * Atualizar o registro com a URL do documento
-  * Retornar o ID e URL do documento gerado 
+  * Retornar o ID e URL do documento gerado
+
+9. MAPEAMENTO DE CAMPOS (FRONTEND -> BACKEND)
+------------------------------------------
+numero_documento -> numero_tratativa
+nome -> funcionario
+valor_registrado -> valor_praticado
+metrica -> medida
+valor_limite -> texto_limite
+tipo_penalidade -> penalidade
+descricao_penalidade -> texto_infracao 
