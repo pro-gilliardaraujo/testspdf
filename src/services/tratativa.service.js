@@ -18,16 +18,56 @@ class TratativaService {
         });
     }
 
+    validarDadosFormulario(dados) {
+        const camposObrigatorios = {
+            numero_documento: 'Número do Documento',
+            nome: 'Nome do Funcionário',
+            funcao: 'Função',
+            setor: 'Setor',
+            cpf: 'CPF',
+            descricao_infracao: 'Descrição da Infração',
+            data_infracao: 'Data da Infração',
+            hora_infracao: 'Hora da Infração',
+            valor_registrado: 'Valor Registrado',
+            metrica: 'Métrica',
+            valor_limite: 'Valor Limite',
+            codigo_infracao: 'Código da Infração',
+            tipo_penalidade: 'Tipo de Penalidade',
+            descricao_penalidade: 'Descrição da Penalidade',
+            url_imagem: 'URL da Imagem',
+            lider: 'Líder'
+        };
+
+        const camposFaltantes = [];
+        for (const [campo, nome] of Object.entries(camposObrigatorios)) {
+            if (!dados[campo] && dados[campo] !== 0 && dados[campo] !== '0') {
+                camposFaltantes.push(nome);
+            }
+        }
+
+        if (camposFaltantes.length > 0) {
+            throw new Error(`Campos obrigatórios faltando: ${camposFaltantes.join(', ')}`);
+        }
+    }
+
     async criarTratativa(dadosFormulario) {
         try {
+            // Validar dados do formulário
+            this.validarDadosFormulario(dadosFormulario);
+
             // Log inicial com dados recebidos
             logger.info('Iniciando criação de tratativa', {
                 operation: 'Criar Tratativa - Início',
                 dados_recebidos: {
                     ...dadosFormulario,
-                    cpf: 'REDACTED' // Não logar CPF completo por segurança
+                    cpf: 'REDACTED'
                 }
             });
+
+            // Garantir que valores numéricos não sejam nulos
+            const valor_praticado = String(dadosFormulario.valor_registrado || '0').trim();
+            const texto_limite = String(dadosFormulario.valor_limite || '0').trim();
+            const metrica = String(dadosFormulario.metrica || 'ocorrências').trim();
 
             // Log do tratamento de valores numéricos
             logger.info('Processando valores numéricos', {
@@ -36,20 +76,11 @@ class TratativaService {
                     valor_registrado: dadosFormulario.valor_registrado,
                     valor_limite: dadosFormulario.valor_limite,
                     metrica: dadosFormulario.metrica
-                }
-            });
-
-            // Garantir que valores numéricos não sejam nulos
-            const valor_praticado = dadosFormulario.valor_registrado || '0';
-            const texto_limite = dadosFormulario.valor_limite || '0';
-
-            // Log após tratamento de valores numéricos
-            logger.info('Valores numéricos processados', {
-                operation: 'Criar Tratativa - Valores Processados',
+                },
                 valores_processados: {
                     valor_praticado,
                     texto_limite,
-                    medida: dadosFormulario.metrica || 'ocorrências'
+                    metrica
                 }
             });
 
@@ -63,21 +94,21 @@ class TratativaService {
 
             // Preparar dados para o banco
             const dadosTratativa = {
-                numero_tratativa: dadosFormulario.numero_documento,
-                funcionario: dadosFormulario.nome,
-                funcao: dadosFormulario.funcao,
-                setor: dadosFormulario.setor,
-                cpf: dadosFormulario.cpf,
+                numero_tratativa: String(dadosFormulario.numero_documento).trim(),
+                funcionario: String(dadosFormulario.nome).trim(),
+                funcao: String(dadosFormulario.funcao).trim(),
+                setor: String(dadosFormulario.setor).trim(),
+                cpf: String(dadosFormulario.cpf).trim(),
                 data_infracao: this.formatarDataParaBanco(dadosFormulario.data_infracao),
-                hora_infracao: dadosFormulario.hora_infracao,
-                codigo_infracao: dadosFormulario.codigo_infracao,
-                descricao_infracao: dadosFormulario.descricao_infracao,
-                penalidade: dadosFormulario.tipo_penalidade,
-                texto_infracao: dadosFormulario.descricao_penalidade,
-                lider: dadosFormulario.lider,
-                valor_praticado: valor_praticado,
-                medida: dadosFormulario.metrica || 'ocorrências',
-                texto_limite: texto_limite,
+                hora_infracao: String(dadosFormulario.hora_infracao).trim(),
+                codigo_infracao: String(dadosFormulario.codigo_infracao).trim(),
+                descricao_infracao: String(dadosFormulario.descricao_infracao).trim(),
+                penalidade: String(dadosFormulario.tipo_penalidade).trim(),
+                texto_infracao: String(dadosFormulario.descricao_penalidade).trim(),
+                lider: String(dadosFormulario.lider).trim(),
+                valor_praticado,
+                medida: metrica,
+                texto_limite,
                 mock: false,
                 status: 'Pendente',
                 created_at: new Date().toISOString()
@@ -88,42 +119,9 @@ class TratativaService {
                 operation: 'Criar Tratativa - Dados Preparados',
                 dados_tratativa: {
                     ...dadosTratativa,
-                    cpf: 'REDACTED' // Não logar CPF completo por segurança
+                    cpf: 'REDACTED'
                 }
             });
-
-            // Validar campos obrigatórios
-            const camposObrigatorios = [
-                'numero_tratativa',
-                'funcionario',
-                'funcao',
-                'setor',
-                'data_infracao',
-                'hora_infracao',
-                'codigo_infracao',
-                'descricao_infracao',
-                'penalidade',
-                'texto_infracao',
-                'lider',
-                'valor_praticado',
-                'medida',
-                'texto_limite'
-            ];
-
-            // Log da validação de campos obrigatórios
-            logger.info('Validando campos obrigatórios', {
-                operation: 'Criar Tratativa - Validação',
-                campos_verificados: camposObrigatorios
-            });
-
-            const camposFaltantes = camposObrigatorios.filter(campo => !dadosTratativa[campo]);
-            if (camposFaltantes.length > 0) {
-                logger.error('Campos obrigatórios faltando', {
-                    operation: 'Criar Tratativa - Erro Validação',
-                    campos_faltantes: camposFaltantes
-                });
-                throw new Error(`Campos obrigatórios faltando: ${camposFaltantes.join(', ')}`);
-            }
 
             // Log antes da inserção no banco
             logger.info('Tentando inserir no banco de dados', {
