@@ -6,6 +6,7 @@ const fs = require('fs').promises;
 const logger = require('../utils/logger');
 const pdfService = require('../services/pdf.service');
 const supabaseService = require('../services/supabase.service');
+const tratativaService = require('../services/tratativa.service');
 
 // Função auxiliar para preparar dados da folha 2
 const prepararDadosFolha2 = (templateData) => {
@@ -40,11 +41,13 @@ router.get('/list', async (req, res) => {
     }
 });
 
-// Rota para gerar documento
-router.post('/generate', async (req, res) => {
+// Rota para criar tratativa e gerar documento
+router.post('/create', async (req, res) => {
     try {
-        logger.logRequest(req, 'Geração de Documento');
-        const { id, templateData } = req.body;
+        logger.logRequest(req, 'Criação de Tratativa e Documento');
+        
+        // Criar tratativa e obter dados formatados
+        const { id, templateData } = await tratativaService.criarTratativa(req.body);
 
         // Log do início da geração do PDF
         logger.info('Iniciando geração dos PDFs', {
@@ -155,15 +158,16 @@ router.post('/generate', async (req, res) => {
 
         const response = {
             status: 'success',
-            message: 'Documento gerado e enviado com sucesso',
+            message: 'Tratativa criada e documento gerado com sucesso',
+            id,
             url: publicUrl
         };
 
         res.json(response);
-        logger.logResponse('Geração de Documento Concluída', response);
+        logger.logResponse('Criação de Tratativa e Documento Concluída', response);
 
     } catch (error) {
-        logger.logError('Erro na Geração de Documento', error, req);
+        logger.logError('Erro na Criação de Tratativa e Documento', error, req);
         res.status(500).json({ status: 'error', message: error.message });
     }
 });
