@@ -87,26 +87,35 @@ class SupabaseService {
                 .from('tratativas')
                 .upload(path, file, {
                     cacheControl: '3600',
-                    upsert: false
+                    upsert: true,
+                    contentType: 'application/pdf'
                 });
 
             if (error) throw error;
 
-            const { data: urlData } = supabase
+            const { data: urlData } = await supabase
                 .storage
                 .from('tratativas')
-                .getPublicUrl(path);
+                .createSignedUrl(path, 31536000, {
+                    download: false,
+                    transform: {
+                        metadata: {
+                            'Content-Type': 'application/pdf',
+                            'Content-Disposition': 'inline'
+                        }
+                    }
+                });
 
             logger.info('Arquivo enviado com sucesso', {
                 operation: 'Upload File',
                 details: {
                     path,
-                    publicUrl: urlData.publicUrl,
+                    publicUrl: urlData.signedUrl,
                     uploadResponse: data
                 }
             });
 
-            return urlData.publicUrl;
+            return urlData.signedUrl;
         } catch (error) {
             logger.logError('Erro no upload do arquivo', error, {
                 operation: 'Upload File',
