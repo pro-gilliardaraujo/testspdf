@@ -7,7 +7,6 @@ const util = require('util');
 const logger = require('../utils/logger');
 const pdfService = require('../services/pdf.service');
 const supabaseService = require('../services/supabase.service');
-const tratativaService = require('../services/tratativa.service');
 
 // Promisify fs functions
 const writeFile = util.promisify(fs.writeFile);
@@ -50,22 +49,6 @@ const formatarNomeDocumento = (tratativa, tipo) => {
     }
 };
 
-// Função auxiliar para preparar dados da folha 2
-const prepararDadosFolha2 = (templateData) => {
-    return {
-        ...templateData,
-        DOP_ADVERTIDO: templateData.tipo_penalidade === 'Advertido' ? 'X' : ' ',
-        DOP_SUSPENSO: templateData.tipo_penalidade === 'Suspenso' ? 'X' : ' '
-    };
-};
-
-// Rota de teste de conexão
-router.get('/test-connection', (req, res) => {
-    logger.logRequest(req, 'Teste de Conexão');
-    res.json({ status: 'success', message: 'API is running' });
-    logger.logResponse('Teste de Conexão', { status: 'success', message: 'API is running' });
-});
-
 // Rota para listar tratativas
 router.get('/list', async (req, res) => {
     try {
@@ -80,98 +63,6 @@ router.get('/list', async (req, res) => {
     } catch (error) {
         logger.logError('Erro na Listagem de Tratativas', error, req);
         res.status(500).json({ status: 'error', message: error.message });
-    }
-});
-
-// Rota para criar tratativa e gerar documento
-router.post('/create', async (req, res) => {
-    try {
-        const dadosRecebidos = req.body;
-
-        // Log detalhado dos dados recebidos
-        logger.info('Dados recebidos do front-end', {
-            operation: 'Validação de Dados',
-            dados_frontend: {
-                ...dadosRecebidos,
-                cpf: 'REDACTED'
-            }
-        });
-
-        // Mapeamento esperado dos dados
-        const dadosEsperados = {
-            numero_tratativa: dadosRecebidos.numero_tratativa,
-            funcionario: dadosRecebidos.funcionario,
-            cpf: dadosRecebidos.cpf,
-            funcao: dadosRecebidos.funcao,
-            setor: dadosRecebidos.setor,
-            data_infracao: dadosRecebidos.data_infracao,
-            hora_infracao: dadosRecebidos.hora_infracao,
-            codigo_infracao: dadosRecebidos.codigo_infracao,
-            descricao_infracao: dadosRecebidos.descricao_infracao,
-            texto_infracao: dadosRecebidos.texto_infracao,
-            texto_advertencia: dadosRecebidos.texto_advertencia,
-            advertido: dadosRecebidos.advertido,
-            grau_penalidade: dadosRecebidos.grau_penalidade,
-            lider: dadosRecebidos.lider,
-            imagem_evidencia1: dadosRecebidos.imagem_evidencia1,
-            status: dadosRecebidos.status
-        };
-
-        // Verificar campos undefined ou null
-        const camposVazios = Object.entries(dadosEsperados)
-            .filter(([key, value]) => value === undefined || value === null)
-            .map(([key]) => key);
-
-        // Log da comparação
-        logger.info('Comparação dos dados', {
-            operation: 'Validação de Dados',
-            comparacao: {
-                campos_recebidos: Object.keys(dadosRecebidos),
-                campos_esperados: Object.keys(dadosEsperados),
-                campos_vazios: camposVazios,
-                valores_recebidos: {
-                    ...dadosRecebidos,
-                    cpf: 'REDACTED'
-                },
-                valores_mapeados: {
-                    ...dadosEsperados,
-                    cpf: 'REDACTED'
-                }
-            }
-        });
-
-        // Resposta com a comparação dos dados
-        res.json({
-            status: 'success',
-            message: camposVazios.length > 0 ? 'Dados recebidos com campos vazios' : 'Dados recebidos com sucesso',
-            comparacao: {
-                campos_recebidos: Object.keys(dadosRecebidos),
-                campos_esperados: Object.keys(dadosEsperados),
-                campos_vazios: camposVazios,
-                dados_recebidos: {
-                    ...dadosRecebidos,
-                    cpf: 'REDACTED'
-                },
-                dados_mapeados: {
-                    ...dadosEsperados,
-                    cpf: 'REDACTED'
-                }
-            }
-        });
-
-    } catch (error) {
-        logger.error('Erro ao processar dados recebidos', {
-            operation: 'Validação de Dados',
-            erro: {
-                mensagem: error.message,
-                stack: error.stack
-            }
-        });
-        res.status(500).json({
-            status: 'error',
-            message: 'Erro ao processar dados',
-            error: error.message
-        });
     }
 });
 
@@ -223,7 +114,7 @@ router.post('/pdftasks', async (req, res) => {
             DOP_HORA_INFRACAO: tratativa.hora_infracao,
             DOP_COD_INFRACAO: tratativa.codigo_infracao,
             DOP_GRAU_PENALIDADE: tratativa.grau_penalidade,
-            DOP_DESC_PENALIDADE: tratativa.texto_infracao,
+            DOP_DESC_PENALIDADE: tratativa.descricao_infracao,
             DOP_IMAGEM: tratativa.imagem_evidencia1,
             DOP_LIDER: tratativa.lider,
             DOP_CPF: tratativa.cpf
@@ -241,6 +132,7 @@ router.post('/pdftasks', async (req, res) => {
             'DOP_COD_INFRACAO',
             'DOP_GRAU_PENALIDADE',
             'DOP_DESC_PENALIDADE',
+            'DOP_IMAGEM',
             'DOP_LIDER',
             'DOP_CPF'
         ];
@@ -310,12 +202,9 @@ router.post('/pdftasks', async (req, res) => {
             });
 
         } catch (error) {
-            // Melhorar o tratamento do erro para capturar mais detalhes
             let errorMessage;
             if (error.response) {
-                // Se temos uma resposta da API com erro
                 if (error.response.data instanceof Buffer) {
-                    // Se a resposta é um buffer, tentar converter para texto
                     errorMessage = error.response.data.toString();
                 } else {
                     errorMessage = error.response.data?.message || error.response.statusText;
@@ -330,7 +219,6 @@ router.post('/pdftasks', async (req, res) => {
                     }
                 });
             } else if (error.request) {
-                // Se a requisição foi feita mas não houve resposta
                 errorMessage = 'Sem resposta do servidor Doppio';
                 logger.error('Erro ao gerar Folha 1', {
                     operation: 'PDF Task',
@@ -341,7 +229,6 @@ router.post('/pdftasks', async (req, res) => {
                     }
                 });
             } else {
-                // Erro na configuração da requisição
                 errorMessage = error.message || 'Erro desconhecido ao gerar PDF';
                 logger.error('Erro ao gerar Folha 1', {
                     operation: 'PDF Task',
@@ -443,12 +330,9 @@ router.post('/pdftasks', async (req, res) => {
             });
 
         } catch (error) {
-            // Melhorar o tratamento do erro para capturar mais detalhes
             let errorMessage;
             if (error.response) {
-                // Se temos uma resposta da API com erro
                 if (error.response.data instanceof Buffer) {
-                    // Se a resposta é um buffer, tentar converter para texto
                     errorMessage = error.response.data.toString();
                 } else {
                     errorMessage = error.response.data?.message || error.response.statusText;
@@ -463,7 +347,6 @@ router.post('/pdftasks', async (req, res) => {
                     }
                 });
             } else if (error.request) {
-                // Se a requisição foi feita mas não houve resposta
                 errorMessage = 'Sem resposta do servidor Doppio';
                 logger.error('Erro ao gerar Folha 2', {
                     operation: 'PDF Task',
@@ -474,7 +357,6 @@ router.post('/pdftasks', async (req, res) => {
                     }
                 });
             } else {
-                // Erro na configuração da requisição
                 errorMessage = error.message || 'Erro desconhecido ao gerar PDF';
                 logger.error('Erro ao gerar Folha 2', {
                     operation: 'PDF Task',
