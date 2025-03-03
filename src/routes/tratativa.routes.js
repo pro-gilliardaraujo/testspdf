@@ -301,8 +301,9 @@ router.post('/pdftasks', async (req, res) => {
             // Salvar o PDF
             await writeFile(tempPath, doppioResponse.data);
 
-            // Criar URL local para o arquivo
-            const localUrl = `/temp/${filename1}`;
+            // Criar URL completo para o arquivo
+            const serverUrl = `https://${req.get('host')}`;
+            const localUrl = `${serverUrl}/temp/${filename1}`;
             
             responseFolha1 = {
                 data: {
@@ -431,8 +432,9 @@ router.post('/pdftasks', async (req, res) => {
             // Salvar o PDF
             await writeFile(tempPath, doppioResponse.data);
 
-            // Criar URL local para o arquivo
-            const localUrl = `/temp/${filename2}`;
+            // Criar URL completo para o arquivo
+            const serverUrl = `https://${req.get('host')}`;
+            const localUrl = `${serverUrl}/temp/${filename2}`;
             
             responseFolha2 = {
                 data: {
