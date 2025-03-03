@@ -314,12 +314,48 @@ router.post('/pdftasks', async (req, res) => {
             });
 
         } catch (error) {
-            const errorMessage = error.response?.data?.message || error.message;
-            logger.error('Erro ao gerar Folha 1', {
-                operation: 'PDF Task',
-                folha: 1,
-                error: errorMessage
-            });
+            // Melhorar o tratamento do erro para capturar mais detalhes
+            let errorMessage;
+            if (error.response) {
+                // Se temos uma resposta da API com erro
+                if (error.response.data instanceof Buffer) {
+                    // Se a resposta é um buffer, tentar converter para texto
+                    errorMessage = error.response.data.toString();
+                } else {
+                    errorMessage = error.response.data?.message || error.response.statusText;
+                }
+                logger.error('Erro ao gerar Folha 1', {
+                    operation: 'PDF Task',
+                    folha: 1,
+                    error: {
+                        message: errorMessage,
+                        status: error.response.status,
+                        headers: error.response.headers
+                    }
+                });
+            } else if (error.request) {
+                // Se a requisição foi feita mas não houve resposta
+                errorMessage = 'Sem resposta do servidor Doppio';
+                logger.error('Erro ao gerar Folha 1', {
+                    operation: 'PDF Task',
+                    folha: 1,
+                    error: {
+                        message: errorMessage,
+                        request: error.request
+                    }
+                });
+            } else {
+                // Erro na configuração da requisição
+                errorMessage = error.message || 'Erro desconhecido ao gerar PDF';
+                logger.error('Erro ao gerar Folha 1', {
+                    operation: 'PDF Task',
+                    folha: 1,
+                    error: {
+                        message: errorMessage,
+                        stack: error.stack
+                    }
+                });
+            }
             throw new Error(`Falha ao gerar Folha 1: ${errorMessage}`);
         }
 
@@ -411,12 +447,48 @@ router.post('/pdftasks', async (req, res) => {
             });
 
         } catch (error) {
-            const errorMessage = error.response?.data?.message || error.message;
-            logger.error('Erro ao gerar Folha 2', {
-                operation: 'PDF Task',
-                folha: 2,
-                error: errorMessage
-            });
+            // Melhorar o tratamento do erro para capturar mais detalhes
+            let errorMessage;
+            if (error.response) {
+                // Se temos uma resposta da API com erro
+                if (error.response.data instanceof Buffer) {
+                    // Se a resposta é um buffer, tentar converter para texto
+                    errorMessage = error.response.data.toString();
+                } else {
+                    errorMessage = error.response.data?.message || error.response.statusText;
+                }
+                logger.error('Erro ao gerar Folha 2', {
+                    operation: 'PDF Task',
+                    folha: 2,
+                    error: {
+                        message: errorMessage,
+                        status: error.response.status,
+                        headers: error.response.headers
+                    }
+                });
+            } else if (error.request) {
+                // Se a requisição foi feita mas não houve resposta
+                errorMessage = 'Sem resposta do servidor Doppio';
+                logger.error('Erro ao gerar Folha 2', {
+                    operation: 'PDF Task',
+                    folha: 2,
+                    error: {
+                        message: errorMessage,
+                        request: error.request
+                    }
+                });
+            } else {
+                // Erro na configuração da requisição
+                errorMessage = error.message || 'Erro desconhecido ao gerar PDF';
+                logger.error('Erro ao gerar Folha 2', {
+                    operation: 'PDF Task',
+                    folha: 2,
+                    error: {
+                        message: errorMessage,
+                        stack: error.stack
+                    }
+                });
+            }
             throw new Error(`Falha ao gerar Folha 2: ${errorMessage}`);
         }
 
