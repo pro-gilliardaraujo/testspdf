@@ -181,11 +181,8 @@ router.post('/pdftasks', async (req, res) => {
 
         // Log dos dados recuperados
         logger.info('Dados da tratativa recuperados', {
-            operation: 'PDF Task - Dados',
-            tratativa: {
-                ...tratativa,
-                cpf: 'REDACTED'
-            }
+            operation: 'PDF Task',
+            tratativa_id: id
         });
 
         // Preparar dados para Folha 1
@@ -249,18 +246,9 @@ router.post('/pdftasks', async (req, res) => {
         }
 
         // Log dos dados mapeados Folha 1
-        logger.info('Dados mapeados para template - Folha 1', {
-            operation: 'PDF Task - Template Folha 1',
-            template_data: {
-                ...templateDataFolha1,
-                DOP_CPF: 'REDACTED'
-            }
-        });
-
-        // Gerar Folha 1
-        logger.info('Gerando Folha 1', {
-            operation: 'PDF Task - Folha 1',
-            templateId: process.env.DOPPIO_TEMPLATE_ID_FOLHA1
+        logger.info('Iniciando geração da Folha 1', {
+            operation: 'PDF Task',
+            folha: 1
         });
 
         let responseFolha1;
@@ -277,13 +265,6 @@ router.post('/pdftasks', async (req, res) => {
                     templateData: templateDataFolha1
                 },
                 responseType: 'arraybuffer'
-            });
-
-            // Log da resposta para debug
-            logger.debug('Resposta da API Doppio', {
-                operation: 'PDF Task - Folha 1 Debug',
-                status: doppioResponse.status,
-                headers: doppioResponse.headers
             });
 
             if (!doppioResponse.data) {
@@ -309,46 +290,25 @@ router.post('/pdftasks', async (req, res) => {
                 }
             };
 
-            logger.info('PDF da Folha 1 salvo localmente', {
-                operation: 'PDF Task - Folha 1',
-                localPath: tempPath,
-                localUrl
+            logger.info('Folha 1 gerada com sucesso', {
+                operation: 'PDF Task',
+                folha: 1
             });
 
         } catch (error) {
             const errorMessage = error.response?.data?.message || error.message;
-            const errorDetails = {
-                status: error.response?.status,
-                statusText: error.response?.statusText,
-                headers: error.response?.headers,
-                config: {
-                    url: error.config?.url,
-                    method: error.config?.method,
-                    headers: {
-                        ...error.config?.headers,
-                        Authorization: 'REDACTED'
-                    }
-                }
-            };
-
-            logger.error('Erro detalhado na chamada da API Doppio - Folha 1', {
-                operation: 'PDF Task - Folha 1',
-                error: {
-                    message: errorMessage,
-                    details: errorDetails,
-                    template_data: {
-                        ...templateDataFolha1,
-                        DOP_CPF: 'REDACTED'
-                    }
-                }
+            logger.error('Erro ao gerar Folha 1', {
+                operation: 'PDF Task',
+                folha: 1,
+                error: errorMessage
             });
             throw new Error(`Falha ao gerar Folha 1: ${errorMessage}`);
         }
 
         if (!responseFolha1.data || !responseFolha1.data.documentUrl) {
-            logger.error('Resposta da API sem URL do documento', {
-                operation: 'PDF Task - Folha 1',
-                response_data: responseFolha1.data
+            logger.error('Erro: URL do documento não encontrada', {
+                operation: 'PDF Task',
+                folha: 1
             });
             throw new Error('Falha ao gerar Folha 1: URL do documento não retornada');
         }
@@ -383,13 +343,9 @@ router.post('/pdftasks', async (req, res) => {
             throw new Error(`Campos obrigatórios ausentes na Folha 2: ${camposVaziosFolha2.join(', ')}`);
         }
         
-        logger.info('Gerando Folha 2', {
-            operation: 'PDF Task - Folha 2',
-            templateId: process.env.DOPPIO_TEMPLATE_ID_FOLHA2,
-            template_data: {
-                ...templateDataFolha2,
-                DOP_CPF: 'REDACTED'
-            }
+        logger.info('Iniciando geração da Folha 2', {
+            operation: 'PDF Task',
+            folha: 2
         });
 
         let responseFolha2;
@@ -406,13 +362,6 @@ router.post('/pdftasks', async (req, res) => {
                     templateData: templateDataFolha2
                 },
                 responseType: 'arraybuffer'
-            });
-
-            // Log da resposta para debug
-            logger.debug('Resposta da API Doppio - Folha 2', {
-                operation: 'PDF Task - Folha 2 Debug',
-                status: doppioResponse.status,
-                headers: doppioResponse.headers
             });
 
             if (!doppioResponse.data) {
@@ -438,32 +387,25 @@ router.post('/pdftasks', async (req, res) => {
                 }
             };
 
-            logger.info('PDF da Folha 2 salvo localmente', {
-                operation: 'PDF Task - Folha 2',
-                localPath: tempPath,
-                localUrl
+            logger.info('Folha 2 gerada com sucesso', {
+                operation: 'PDF Task',
+                folha: 2
             });
 
         } catch (error) {
             const errorMessage = error.response?.data?.message || error.message;
-            logger.error('Erro na chamada da API Doppio - Folha 2', {
-                operation: 'PDF Task - Folha 2',
-                error: {
-                    message: errorMessage,
-                    response: error.response?.data,
-                    template_data: {
-                        ...templateDataFolha2,
-                        DOP_CPF: 'REDACTED'
-                    }
-                }
+            logger.error('Erro ao gerar Folha 2', {
+                operation: 'PDF Task',
+                folha: 2,
+                error: errorMessage
             });
             throw new Error(`Falha ao gerar Folha 2: ${errorMessage}`);
         }
 
         if (!responseFolha2.data || !responseFolha2.data.documentUrl) {
-            logger.error('Resposta da API sem URL do documento', {
-                operation: 'PDF Task - Folha 2',
-                response_data: responseFolha2.data
+            logger.error('Erro: URL do documento não encontrada', {
+                operation: 'PDF Task',
+                folha: 2
             });
             throw new Error('Falha ao gerar Folha 2: URL do documento não retornada');
         }
@@ -472,10 +414,8 @@ router.post('/pdftasks', async (req, res) => {
         const filename1 = formatarNomeDocumento(tratativa, 'folha1');
         const filename2 = formatarNomeDocumento(tratativa, 'folha2');
         
-        logger.info('Iniciando download dos PDFs', {
-            operation: 'PDF Task - Download',
-            files: [filename1, filename2],
-            urls: [responseFolha1.data.documentUrl, responseFolha2.data.documentUrl]
+        logger.info('Iniciando processamento final do documento', {
+            operation: 'PDF Task'
         });
 
         const [file1, file2] = await Promise.all([
@@ -485,62 +425,37 @@ router.post('/pdftasks', async (req, res) => {
 
         // Merge dos PDFs
         const mergedFilename = formatarNomeDocumento(tratativa, 'completo');
-        logger.info('Iniciando merge dos PDFs', {
-            operation: 'PDF Task - Merge',
-            files: [file1, file2],
-            output: mergedFilename
-        });
-
         const mergedFile = await pdfService.mergePDFs([file1, file2], mergedFilename);
 
         // Upload para o Supabase
-        logger.info('Iniciando upload para o Supabase', {
-            operation: 'PDF Task - Upload',
-            filename: mergedFilename
-        });
-
         const fileContent = await fs.readFile(mergedFile);
         const supabasePath = `documentos/${tratativa.numero_tratativa}/${mergedFilename}`;
         const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
 
         // Atualizar URL do documento na tratativa
-        logger.info('Atualizando URL do documento na tratativa', {
-            operation: 'PDF Task - Update URL',
-            id,
-            url: publicUrl
-        });
-
         await supabaseService.updateDocumentUrl(id, publicUrl);
 
         // Limpar arquivos temporários
-        logger.info('Limpando arquivos temporários', {
-            operation: 'PDF Task - Cleanup',
-            files: [file1, file2, mergedFile]
-        });
-
         await pdfService.cleanupFiles([file1, file2, mergedFile]);
 
         // Resposta de sucesso
         const response = {
             status: 'success',
-            message: 'Documento PDF gerado e atualizado com sucesso',
+            message: 'Documento PDF gerado com sucesso',
             id,
             url: publicUrl
         };
 
         res.json(response);
-        logger.info('Processamento de PDF concluído', {
-            operation: 'PDF Task - Concluído',
-            response
+        logger.info('Documento gerado e salvo com sucesso', {
+            operation: 'PDF Task',
+            url: publicUrl
         });
 
     } catch (error) {
-        logger.error('Erro no processamento do PDF', {
-            operation: 'PDF Task - Erro',
-            erro: {
-                mensagem: error.message,
-                stack: error.stack
-            }
+        logger.error('Erro no processamento do documento', {
+            operation: 'PDF Task',
+            error: error.message
         });
         res.status(500).json({
             status: 'error',
