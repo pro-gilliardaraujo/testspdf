@@ -526,7 +526,7 @@ router.post('/pdftasks', async (req, res) => {
 
         // Upload para o Supabase
         const fileContent = await readFile(mergedFile);
-        const supabasePath = `documentos/${tratativa.numero_tratativa}/${mergedFilename}`;
+        const supabasePath = `tratativas/enviadas/${tratativa.numero_tratativa}/${mergedFilename}`;
         const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
 
         // Atualizar URL do documento na tratativa
