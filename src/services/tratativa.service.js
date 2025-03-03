@@ -66,7 +66,24 @@ class TratativaService {
         }
 
         if (camposFaltantes.length > 0) {
+            logger.error('Campos obrigatórios faltando', {
+                operation: 'Validação de Formulário',
+                campos_faltantes: camposFaltantes,
+                dados_recebidos: {
+                    ...dados,
+                    cpf: 'REDACTED'
+                }
+            });
             throw new Error(`Campos obrigatórios faltando: ${camposFaltantes.join(', ')}`);
+        }
+
+        // Validação adicional dos valores numéricos
+        if (isNaN(parseFloat(dados.valor_registrado))) {
+            throw new Error('Valor Registrado deve ser um número válido');
+        }
+
+        if (isNaN(parseFloat(dados.valor_limite))) {
+            throw new Error('Valor Limite deve ser um número válido');
         }
     }
 
@@ -85,43 +102,21 @@ class TratativaService {
             });
 
             // Garantir que valores numéricos não sejam nulos e converter para string
-            const valor_registrado = dadosFormulario.valor_registrado;
-            const valor_limite = dadosFormulario.valor_limite;
-
-            // Log dos valores antes do processamento
-            logger.info('Valores antes do processamento', {
-                operation: 'Criar Tratativa - Valores Brutos',
-                valores: {
-                    valor_registrado,
-                    valor_limite,
-                    tipos: {
-                        valor_registrado: typeof valor_registrado,
-                        valor_limite: typeof valor_limite
-                    }
-                }
-            });
-
-            // Processamento dos valores usando o novo método
-            const valor_praticado = this.formatarValorNumerico(valor_registrado);
-            const texto_limite = this.formatarValorNumerico(valor_limite);
+            const valor_registrado = this.formatarValorNumerico(dadosFormulario.valor_registrado);
+            const valor_limite = this.formatarValorNumerico(dadosFormulario.valor_limite);
             const metrica = this.formatarValorNumerico(dadosFormulario.metrica, 'ocorrências');
 
-            // Log após processamento
+            // Log dos valores processados
             logger.info('Valores após processamento', {
                 operation: 'Criar Tratativa - Valores Processados',
                 valores: {
-                    valor_praticado,
-                    texto_limite,
-                    metrica,
-                    tipos: {
-                        valor_praticado: typeof valor_praticado,
-                        texto_limite: typeof texto_limite,
-                        metrica: typeof metrica
-                    }
+                    valor_registrado,
+                    valor_limite,
+                    metrica
                 }
             });
 
-            // Preparar dados para o banco (garantindo que todos os campos são texto)
+            // Preparar dados para o banco
             const dadosTratativa = {
                 numero_tratativa: String(dadosFormulario.numero_documento || '').trim(),
                 funcionario: String(dadosFormulario.nome || '').trim(),
@@ -135,23 +130,13 @@ class TratativaService {
                 penalidade: String(dadosFormulario.tipo_penalidade || '').trim(),
                 texto_infracao: String(dadosFormulario.descricao_penalidade || '').trim(),
                 lider: String(dadosFormulario.lider || '').trim(),
-                valor_praticado: String(valor_praticado),
-                medida: String(metrica),
-                texto_limite: String(texto_limite),
+                valor_praticado: valor_registrado,
+                medida: metrica,
+                texto_limite: valor_limite,
+                url_imagem: String(dadosFormulario.url_imagem || '').trim(),
                 mock: false,
-                status: String('Pendente')
+                status: 'Pendente'
             };
-
-            // Validação extra dos campos críticos
-            if (!dadosTratativa.texto_limite) {
-                logger.error('Valor limite inválido', {
-                    operation: 'Criar Tratativa - Validação Extra',
-                    valor_original: valor_limite,
-                    valor_processado: texto_limite,
-                    dados_tratativa: dadosTratativa
-                });
-                throw new Error('Valor limite inválido ou não fornecido');
-            }
 
             // Log detalhado dos dados preparados para o banco
             logger.info('Dados preparados para inserção', {
@@ -159,26 +144,6 @@ class TratativaService {
                 dados_tratativa: {
                     ...dadosTratativa,
                     cpf: 'REDACTED'
-                },
-                tipos: {
-                    valor_praticado: typeof dadosTratativa.valor_praticado,
-                    texto_limite: typeof dadosTratativa.texto_limite,
-                    medida: typeof dadosTratativa.medida
-                },
-                valores_numericos: {
-                    valor_praticado: dadosTratativa.valor_praticado,
-                    texto_limite: dadosTratativa.texto_limite
-                }
-            });
-
-            // Log antes da inserção no banco
-            logger.info('Tentando inserir no banco de dados', {
-                operation: 'Criar Tratativa - Inserção',
-                tabela: 'tratativas',
-                dados_criticos: {
-                    valor_praticado: dadosTratativa.valor_praticado,
-                    texto_limite: dadosTratativa.texto_limite,
-                    medida: dadosTratativa.medida
                 }
             });
 
@@ -195,27 +160,10 @@ class TratativaService {
                     dados_enviados: {
                         ...dadosTratativa,
                         cpf: 'REDACTED'
-                    },
-                    valores_criticos: {
-                        valor_praticado: dadosTratativa.valor_praticado,
-                        texto_limite: dadosTratativa.texto_limite,
-                        medida: dadosTratativa.medida
                     }
                 });
                 throw error;
             }
-
-            // Log do sucesso da inserção
-            logger.info('Registro inserido com sucesso', {
-                operation: 'Criar Tratativa - Sucesso Inserção',
-                id: data.id,
-                numero_tratativa: data.numero_tratativa,
-                valores_inseridos: {
-                    valor_praticado: data.valor_praticado,
-                    texto_limite: data.texto_limite,
-                    medida: data.medida
-                }
-            });
 
             // Preparar dados para o template do PDF
             const templateData = {
@@ -233,27 +181,11 @@ class TratativaService {
                 DOP_COD_INFRACAO: data.codigo_infracao,
                 DOP_GRAU_PENALIDADE: data.codigo_infracao.split('-')[0],
                 DOP_DESC_PENALIDADE: data.texto_infracao,
-                DOP_IMAGEM: dadosFormulario.url_imagem,
+                DOP_IMAGEM: data.url_imagem,
                 DOP_LIDER: data.lider,
-                DOP_CPF: dadosFormulario.cpf,
+                DOP_CPF: data.cpf,
                 tipo_penalidade: data.penalidade
             };
-
-            // Log dos dados preparados para o template
-            logger.info('Dados preparados para o template', {
-                operation: 'Criar Tratativa - Template',
-                template_data: {
-                    ...templateData,
-                    DOP_CPF: 'REDACTED'
-                }
-            });
-
-            // Log final de sucesso
-            logger.info('Tratativa criada com sucesso', {
-                operation: 'Criar Tratativa - Finalizado',
-                id: data.id,
-                numero_tratativa: data.numero_tratativa
-            });
 
             return {
                 id: data.id,
