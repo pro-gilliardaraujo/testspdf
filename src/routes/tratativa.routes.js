@@ -169,11 +169,7 @@ router.post('/pdftasks', async (req, res) => {
         });
 
         // Buscar dados da tratativa
-        const { data: tratativa, error: fetchError } = await supabase
-            .from('tratativas')
-            .select('*')
-            .eq('id', id)
-            .single();
+        const { data: tratativa, error: fetchError } = await supabaseService.getTratativaById(id);
 
         if (fetchError) {
             throw new Error(`Erro ao buscar tratativa: ${fetchError.message}`);

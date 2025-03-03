@@ -115,6 +115,39 @@ class SupabaseService {
             throw error;
         }
     }
+
+    async getTratativaById(id) {
+        try {
+            logger.info('Buscando tratativa por ID', {
+                operation: 'Get Tratativa',
+                details: { id }
+            });
+
+            const { data, error } = await supabase
+                .from('tratativas')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (error) throw error;
+
+            logger.info('Tratativa recuperada', {
+                operation: 'Get Tratativa',
+                details: {
+                    id,
+                    found: !!data
+                }
+            });
+
+            return { data, error: null };
+        } catch (error) {
+            logger.logError('Erro ao buscar tratativa', error, {
+                operation: 'Get Tratativa',
+                details: { id }
+            });
+            return { data: null, error };
+        }
+    }
 }
 
 module.exports = new SupabaseService(); 
