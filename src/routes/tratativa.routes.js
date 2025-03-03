@@ -2,11 +2,28 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const path = require('path');
-const fs = require('fs').promises;
+const fs = require('fs');
+const util = require('util');
 const logger = require('../utils/logger');
 const pdfService = require('../services/pdf.service');
 const supabaseService = require('../services/supabase.service');
 const tratativaService = require('../services/tratativa.service');
+
+// Promisify fs functions
+const writeFile = util.promisify(fs.writeFile);
+const mkdir = util.promisify(fs.mkdir);
+const readFile = util.promisify(fs.readFile);
+
+// Função auxiliar para garantir que um diretório existe
+const ensureDirectoryExists = async (dirPath) => {
+    try {
+        await mkdir(dirPath, { recursive: true });
+    } catch (error) {
+        if (error.code !== 'EEXIST') {
+            throw error;
+        }
+    }
+};
 
 // Função auxiliar para formatar nome do documento
 const formatarNomeDocumento = (tratativa, tipo) => {
@@ -273,13 +290,14 @@ router.post('/pdftasks', async (req, res) => {
 
             // Salvar o PDF recebido
             const filename1 = formatarNomeDocumento(tratativa, 'folha1');
-            const tempPath = path.join('temp', filename1);
+            const tempDir = path.join(process.cwd(), 'temp');
+            const tempPath = path.join(tempDir, filename1);
             
             // Garantir que o diretório temp existe
-            await fs.promises.mkdir('temp', { recursive: true });
+            await ensureDirectoryExists(tempDir);
             
             // Salvar o PDF
-            await fs.promises.writeFile(tempPath, doppioResponse.data);
+            await writeFile(tempPath, doppioResponse.data);
 
             // Criar URL local para o arquivo
             const localUrl = `/temp/${filename1}`;
@@ -370,13 +388,13 @@ router.post('/pdftasks', async (req, res) => {
 
             // Salvar o PDF recebido
             const filename2 = formatarNomeDocumento(tratativa, 'folha2');
-            const tempPath = path.join('temp', filename2);
+            const tempPath = path.join(tempDir, filename2);
             
             // Garantir que o diretório temp existe
-            await fs.promises.mkdir('temp', { recursive: true });
+            await ensureDirectoryExists(tempDir);
             
             // Salvar o PDF
-            await fs.promises.writeFile(tempPath, doppioResponse.data);
+            await writeFile(tempPath, doppioResponse.data);
 
             // Criar URL local para o arquivo
             const localUrl = `/temp/${filename2}`;
@@ -428,7 +446,7 @@ router.post('/pdftasks', async (req, res) => {
         const mergedFile = await pdfService.mergePDFs([file1, file2], mergedFilename);
 
         // Upload para o Supabase
-        const fileContent = await fs.readFile(mergedFile);
+        const fileContent = await readFile(mergedFile);
         const supabasePath = `documentos/${tratativa.numero_tratativa}/${mergedFilename}`;
         const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
 
