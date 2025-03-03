@@ -99,23 +99,21 @@ router.post('/create', async (req, res) => {
 
         // Mapeamento esperado dos dados
         const dadosEsperados = {
-            numero_documento: dadosRecebidos.numero_documento,
-            nome_funcionario: dadosRecebidos.nome_funcionario,
+            numero_tratativa: dadosRecebidos.numero_tratativa,
+            funcionario: dadosRecebidos.funcionario,
             cpf: dadosRecebidos.cpf,
             funcao: dadosRecebidos.funcao,
             setor: dadosRecebidos.setor,
             data_infracao: dadosRecebidos.data_infracao,
             hora_infracao: dadosRecebidos.hora_infracao,
             codigo_infracao: dadosRecebidos.codigo_infracao,
-            infracao_cometida: dadosRecebidos.infracao_cometida,
-            penalidade: dadosRecebidos.penalidade,
-            nome_lider: dadosRecebidos.nome_lider,
-            metrica: dadosRecebidos.metrica,
-            valor_praticado: dadosRecebidos.valor_praticado,
-            valor_limite: dadosRecebidos.valor_limite,
+            descricao_infracao: dadosRecebidos.descricao_infracao,
             texto_infracao: dadosRecebidos.texto_infracao,
-            texto_limite: dadosRecebidos.texto_limite,
-            url_imagem: dadosRecebidos.url_imagem,
+            texto_advertencia: dadosRecebidos.texto_advertencia,
+            advertido: dadosRecebidos.advertido,
+            grau_penalidade: dadosRecebidos.grau_penalidade,
+            lider: dadosRecebidos.lider,
+            imagem_evidencia1: dadosRecebidos.imagem_evidencia1,
             status: dadosRecebidos.status
         };
 
@@ -223,14 +221,6 @@ router.post('/pdftasks', async (req, res) => {
             DOP_DESC_INFRACAO: tratativa.descricao_infracao,
             DOP_DATA_INFRACAO: tratativa.data_infracao,
             DOP_HORA_INFRACAO: tratativa.hora_infracao,
-            DOP_VALOR_REGISTRADO: tratativa.valor_praticado,
-            DOP_METRICA: tratativa.metrica,
-            DOP_VALOR_LIMITE: tratativa.texto_limite,
-            DOP_DATA_EXTENSA: new Date(tratativa.data_infracao).toLocaleDateString('pt-BR', { 
-                day: '2-digit', 
-                month: 'long', 
-                year: 'numeric' 
-            }),
             DOP_COD_INFRACAO: tratativa.codigo_infracao,
             DOP_GRAU_PENALIDADE: tratativa.grau_penalidade,
             DOP_DESC_PENALIDADE: tratativa.texto_infracao,
@@ -248,9 +238,6 @@ router.post('/pdftasks', async (req, res) => {
             'DOP_DESC_INFRACAO',
             'DOP_DATA_INFRACAO',
             'DOP_HORA_INFRACAO',
-            'DOP_VALOR_REGISTRADO',
-            'DOP_METRICA',
-            'DOP_VALOR_LIMITE',
             'DOP_COD_INFRACAO',
             'DOP_GRAU_PENALIDADE',
             'DOP_DESC_PENALIDADE',
@@ -380,14 +367,16 @@ router.post('/pdftasks', async (req, res) => {
         const templateDataFolha2 = {
             ...templateDataFolha1,
             DOP_ADVERTIDO: tratativa.advertido === 'Advertido' ? 'X' : ' ',
-            DOP_SUSPENSO: tratativa.advertido === 'Suspenso' ? 'X' : ' '
+            DOP_SUSPENSO: tratativa.advertido === 'Suspenso' ? 'X' : ' ',
+            DOP_TEXTO_ADVERTENCIA: tratativa.texto_advertencia
         };
 
         // Validar campos obrigatórios Folha 2
         const camposObrigatoriosFolha2 = [
             ...camposObrigatoriosFolha1,
             'DOP_ADVERTIDO',
-            'DOP_SUSPENSO'
+            'DOP_SUSPENSO',
+            'DOP_TEXTO_ADVERTENCIA'
         ];
 
         const camposVaziosFolha2 = camposObrigatoriosFolha2.filter(
