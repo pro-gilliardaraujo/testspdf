@@ -155,7 +155,7 @@ router.post('/create', async (req, res) => {
 });
 
 // Rota para processar geração de PDF
-router.post('/pdftask', async (req, res) => {
+router.post('/pdftasks', async (req, res) => {
     try {
         const { id } = req.body;
 
