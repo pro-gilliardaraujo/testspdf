@@ -265,7 +265,7 @@ router.post('/pdftasks', async (req, res) => {
 
         let responseFolha1;
         try {
-            responseFolha1 = await axios({
+            const doppioResponse = await axios({
                 method: 'POST',
                 url: 'https://api.doppio.sh/v1/template/direct',
                 headers: {
@@ -278,18 +278,47 @@ router.post('/pdftasks', async (req, res) => {
                 }
             });
 
+            // Log da resposta completa para debug
+            logger.debug('Resposta completa da API Doppio', {
+                operation: 'PDF Task - Folha 1 Debug',
+                response: doppioResponse
+            });
+
+            if (!doppioResponse.data) {
+                throw new Error('Resposta da API sem dados');
+            }
+
+            responseFolha1 = doppioResponse;
+
             logger.info('Resposta da API Doppio - Folha 1', {
                 operation: 'PDF Task - Folha 1',
-                response: responseFolha1.data
+                response: {
+                    status: doppioResponse.status,
+                    data: doppioResponse.data
+                }
             });
 
         } catch (error) {
             const errorMessage = error.response?.data?.message || error.message;
-            logger.error('Erro na chamada da API Doppio - Folha 1', {
+            const errorDetails = {
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                config: {
+                    url: error.config?.url,
+                    method: error.config?.method,
+                    headers: {
+                        ...error.config?.headers,
+                        Authorization: 'REDACTED'
+                    }
+                }
+            };
+
+            logger.error('Erro detalhado na chamada da API Doppio - Folha 1', {
                 operation: 'PDF Task - Folha 1',
                 error: {
                     message: errorMessage,
-                    response: error.response?.data,
+                    details: errorDetails,
                     template_data: {
                         ...templateDataFolha1,
                         DOP_CPF: 'REDACTED'
@@ -300,7 +329,12 @@ router.post('/pdftasks', async (req, res) => {
         }
 
         if (!responseFolha1.data || !responseFolha1.data.url) {
-            throw new Error('Falha ao gerar Folha 1: URL não retornada');
+            const errorDetail = `Resposta recebida: ${JSON.stringify(responseFolha1.data || {})}`;
+            logger.error('Resposta da API sem URL', {
+                operation: 'PDF Task - Folha 1',
+                response_data: responseFolha1.data
+            });
+            throw new Error(`Falha ao gerar Folha 1: URL não retornada. ${errorDetail}`);
         }
 
         // Preparar dados para Folha 2
@@ -357,9 +391,22 @@ router.post('/pdftasks', async (req, res) => {
                 }
             });
 
+            // Log da resposta completa para debug
+            logger.debug('Resposta completa da API Doppio - Folha 2', {
+                operation: 'PDF Task - Folha 2 Debug',
+                response: responseFolha2
+            });
+
+            if (!responseFolha2.data) {
+                throw new Error('Resposta da API sem dados');
+            }
+
             logger.info('Resposta da API Doppio - Folha 2', {
                 operation: 'PDF Task - Folha 2',
-                response: responseFolha2.data
+                response: {
+                    status: responseFolha2.status,
+                    data: responseFolha2.data
+                }
             });
 
         } catch (error) {
