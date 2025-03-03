@@ -188,8 +188,8 @@ router.post('/pdftasks', async (req, res) => {
             }
         });
 
-        // Preparar dados para os templates
-        const templateData = {
+        // Preparar dados para Folha 1
+        const templateDataFolha1 = {
             DOP_NUMERO_DOCUMENTO: tratativa.numero_tratativa,
             DOP_NOME: tratativa.funcionario,
             DOP_FUNCAO: tratativa.funcao,
@@ -198,23 +198,61 @@ router.post('/pdftasks', async (req, res) => {
             DOP_DATA_INFRACAO: tratativa.data_infracao,
             DOP_HORA_INFRACAO: tratativa.hora_infracao,
             DOP_VALOR_REGISTRADO: tratativa.valor_praticado,
-            DOP_METRICA: tratativa.medida,
+            DOP_METRICA: tratativa.metrica,
             DOP_VALOR_LIMITE: tratativa.texto_limite,
-            DOP_DATA_EXTENSA: tratativaService.formatarDataExtensa(tratativa.data_infracao),
+            DOP_DATA_EXTENSA: new Date(tratativa.data_infracao).toLocaleDateString('pt-BR', { 
+                day: '2-digit', 
+                month: 'long', 
+                year: 'numeric' 
+            }),
             DOP_COD_INFRACAO: tratativa.codigo_infracao,
-            DOP_GRAU_PENALIDADE: tratativa.codigo_infracao.split('-')[0],
+            DOP_GRAU_PENALIDADE: tratativa.grau_penalidade,
             DOP_DESC_PENALIDADE: tratativa.texto_infracao,
-            DOP_IMAGEM: tratativa.url_imagem,
+            DOP_IMAGEM: tratativa.imagem_evidencia1,
             DOP_LIDER: tratativa.lider,
-            DOP_CPF: tratativa.cpf,
-            tipo_penalidade: tratativa.penalidade
+            DOP_CPF: tratativa.cpf
         };
 
-        // Log dos dados mapeados
-        logger.info('Dados mapeados para template', {
-            operation: 'PDF Task - Template',
+        // Validar campos obrigatórios Folha 1
+        const camposObrigatoriosFolha1 = [
+            'DOP_NUMERO_DOCUMENTO',
+            'DOP_NOME',
+            'DOP_FUNCAO',
+            'DOP_SETOR',
+            'DOP_DESC_INFRACAO',
+            'DOP_DATA_INFRACAO',
+            'DOP_HORA_INFRACAO',
+            'DOP_VALOR_REGISTRADO',
+            'DOP_METRICA',
+            'DOP_VALOR_LIMITE',
+            'DOP_COD_INFRACAO',
+            'DOP_GRAU_PENALIDADE',
+            'DOP_DESC_PENALIDADE',
+            'DOP_LIDER',
+            'DOP_CPF'
+        ];
+
+        const camposVaziosFolha1 = camposObrigatoriosFolha1.filter(
+            campo => !templateDataFolha1[campo]
+        );
+
+        if (camposVaziosFolha1.length > 0) {
+            logger.error('Campos obrigatórios ausentes na Folha 1', {
+                operation: 'PDF Task - Validação Folha 1',
+                campos_ausentes: camposVaziosFolha1,
+                dados_template: {
+                    ...templateDataFolha1,
+                    DOP_CPF: 'REDACTED'
+                }
+            });
+            throw new Error(`Campos obrigatórios ausentes na Folha 1: ${camposVaziosFolha1.join(', ')}`);
+        }
+
+        // Log dos dados mapeados Folha 1
+        logger.info('Dados mapeados para template - Folha 1', {
+            operation: 'PDF Task - Template Folha 1',
             template_data: {
-                ...templateData,
+                ...templateDataFolha1,
                 DOP_CPF: 'REDACTED'
             }
         });
@@ -225,46 +263,123 @@ router.post('/pdftasks', async (req, res) => {
             templateId: process.env.DOPPIO_TEMPLATE_ID_FOLHA1
         });
 
-        const responseFolha1 = await axios({
-            method: 'POST',
-            url: 'https://api.doppio.sh/v1/template/direct',
-            headers: {
-                'Authorization': `Bearer ${process.env.DOPPIO_API_KEY_FOLHA1}`,
-                'Content-Type': 'application/json'
-            },
-            data: {
-                templateId: process.env.DOPPIO_TEMPLATE_ID_FOLHA1,
-                templateData
-            }
-        });
+        let responseFolha1;
+        try {
+            responseFolha1 = await axios({
+                method: 'POST',
+                url: 'https://api.doppio.sh/v1/template/direct',
+                headers: {
+                    'Authorization': `Bearer ${process.env.DOPPIO_API_KEY_FOLHA1}`,
+                    'Content-Type': 'application/json'
+                },
+                data: {
+                    templateId: process.env.DOPPIO_TEMPLATE_ID_FOLHA1,
+                    templateData: templateDataFolha1
+                }
+            });
 
-        if (!responseFolha1.data || !responseFolha1.data.url) {
-            throw new Error('Falha ao gerar Folha 1');
+            logger.info('Resposta da API Doppio - Folha 1', {
+                operation: 'PDF Task - Folha 1',
+                response: responseFolha1.data
+            });
+
+        } catch (error) {
+            const errorMessage = error.response?.data?.message || error.message;
+            logger.error('Erro na chamada da API Doppio - Folha 1', {
+                operation: 'PDF Task - Folha 1',
+                error: {
+                    message: errorMessage,
+                    response: error.response?.data,
+                    template_data: {
+                        ...templateDataFolha1,
+                        DOP_CPF: 'REDACTED'
+                    }
+                }
+            });
+            throw new Error(`Falha ao gerar Folha 1: ${errorMessage}`);
         }
 
-        // Gerar Folha 2
-        const dadosFolha2 = prepararDadosFolha2(templateData);
+        if (!responseFolha1.data || !responseFolha1.data.url) {
+            throw new Error('Falha ao gerar Folha 1: URL não retornada');
+        }
+
+        // Preparar dados para Folha 2
+        const templateDataFolha2 = {
+            ...templateDataFolha1,
+            DOP_ADVERTIDO: tratativa.advertido === 'Advertido' ? 'X' : ' ',
+            DOP_SUSPENSO: tratativa.advertido === 'Suspenso' ? 'X' : ' '
+        };
+
+        // Validar campos obrigatórios Folha 2
+        const camposObrigatoriosFolha2 = [
+            ...camposObrigatoriosFolha1,
+            'DOP_ADVERTIDO',
+            'DOP_SUSPENSO'
+        ];
+
+        const camposVaziosFolha2 = camposObrigatoriosFolha2.filter(
+            campo => templateDataFolha2[campo] === undefined || templateDataFolha2[campo] === null
+        );
+
+        if (camposVaziosFolha2.length > 0) {
+            logger.error('Campos obrigatórios ausentes na Folha 2', {
+                operation: 'PDF Task - Validação Folha 2',
+                campos_ausentes: camposVaziosFolha2,
+                dados_template: {
+                    ...templateDataFolha2,
+                    DOP_CPF: 'REDACTED'
+                }
+            });
+            throw new Error(`Campos obrigatórios ausentes na Folha 2: ${camposVaziosFolha2.join(', ')}`);
+        }
         
         logger.info('Gerando Folha 2', {
             operation: 'PDF Task - Folha 2',
-            templateId: process.env.DOPPIO_TEMPLATE_ID_FOLHA2
-        });
-
-        const responseFolha2 = await axios({
-            method: 'POST',
-            url: 'https://api.doppio.sh/v1/template/direct',
-            headers: {
-                'Authorization': `Bearer ${process.env.DOPPIO_API_KEY_FOLHA2}`,
-                'Content-Type': 'application/json'
-            },
-            data: {
-                templateId: process.env.DOPPIO_TEMPLATE_ID_FOLHA2,
-                templateData: dadosFolha2
+            templateId: process.env.DOPPIO_TEMPLATE_ID_FOLHA2,
+            template_data: {
+                ...templateDataFolha2,
+                DOP_CPF: 'REDACTED'
             }
         });
 
+        let responseFolha2;
+        try {
+            responseFolha2 = await axios({
+                method: 'POST',
+                url: 'https://api.doppio.sh/v1/template/direct',
+                headers: {
+                    'Authorization': `Bearer ${process.env.DOPPIO_API_KEY_FOLHA2}`,
+                    'Content-Type': 'application/json'
+                },
+                data: {
+                    templateId: process.env.DOPPIO_TEMPLATE_ID_FOLHA2,
+                    templateData: templateDataFolha2
+                }
+            });
+
+            logger.info('Resposta da API Doppio - Folha 2', {
+                operation: 'PDF Task - Folha 2',
+                response: responseFolha2.data
+            });
+
+        } catch (error) {
+            const errorMessage = error.response?.data?.message || error.message;
+            logger.error('Erro na chamada da API Doppio - Folha 2', {
+                operation: 'PDF Task - Folha 2',
+                error: {
+                    message: errorMessage,
+                    response: error.response?.data,
+                    template_data: {
+                        ...templateDataFolha2,
+                        DOP_CPF: 'REDACTED'
+                    }
+                }
+            });
+            throw new Error(`Falha ao gerar Folha 2: ${errorMessage}`);
+        }
+
         if (!responseFolha2.data || !responseFolha2.data.url) {
-            throw new Error('Falha ao gerar Folha 2');
+            throw new Error('Falha ao gerar Folha 2: URL não retornada');
         }
 
         // Download dos PDFs
