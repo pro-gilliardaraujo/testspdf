@@ -31,8 +31,8 @@ const formatarNomeDocumento = (tratativa, tipo) => {
 const prepararDadosFolha2 = (templateData) => {
     return {
         ...templateData,
-        DOP_ADVERTIDO: templateData.tipo_penalidade === 'Advertência' ? 'X' : ' ',
-        DOP_SUSPENSO: templateData.tipo_penalidade === 'Suspensão' ? 'X' : ' '
+        DOP_ADVERTIDO: templateData.tipo_penalidade === 'Advertido' ? 'X' : ' ',
+        DOP_SUSPENSO: templateData.tipo_penalidade === 'Suspenso' ? 'X' : ' '
     };
 };
 
