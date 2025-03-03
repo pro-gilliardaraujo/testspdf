@@ -185,6 +185,12 @@ router.post('/pdftasks', async (req, res) => {
             tratativa_id: id
         });
 
+        // Definir diretório temporário no início do processamento
+        const tempDir = path.join(process.cwd(), 'temp');
+        
+        // Garantir que o diretório temp existe
+        await ensureDirectoryExists(tempDir);
+
         // Buscar dados da tratativa
         const { data: tratativa, error: fetchError } = await supabaseService.getTratativaById(id);
 
@@ -290,11 +296,7 @@ router.post('/pdftasks', async (req, res) => {
 
             // Salvar o PDF recebido
             const filename1 = formatarNomeDocumento(tratativa, 'folha1');
-            const tempDir = path.join(process.cwd(), 'temp');
             const tempPath = path.join(tempDir, filename1);
-            
-            // Garantir que o diretório temp existe
-            await ensureDirectoryExists(tempDir);
             
             // Salvar o PDF
             await writeFile(tempPath, doppioResponse.data);
@@ -425,9 +427,6 @@ router.post('/pdftasks', async (req, res) => {
             // Salvar o PDF recebido
             const filename2 = formatarNomeDocumento(tratativa, 'folha2');
             const tempPath = path.join(tempDir, filename2);
-            
-            // Garantir que o diretório temp existe
-            await ensureDirectoryExists(tempDir);
             
             // Salvar o PDF
             await writeFile(tempPath, doppioResponse.data);
