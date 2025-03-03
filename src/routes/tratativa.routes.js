@@ -275,27 +275,44 @@ router.post('/pdftasks', async (req, res) => {
                 data: {
                     templateId: process.env.DOPPIO_TEMPLATE_ID_FOLHA1,
                     templateData: templateDataFolha1
-                }
+                },
+                responseType: 'arraybuffer'
             });
 
-            // Log da resposta completa para debug
-            logger.debug('Resposta completa da API Doppio', {
+            // Log da resposta para debug
+            logger.debug('Resposta da API Doppio', {
                 operation: 'PDF Task - Folha 1 Debug',
-                response: doppioResponse
+                status: doppioResponse.status,
+                headers: doppioResponse.headers
             });
 
             if (!doppioResponse.data) {
                 throw new Error('Resposta da API sem dados');
             }
 
-            responseFolha1 = doppioResponse;
+            // Salvar o PDF recebido
+            const filename1 = formatarNomeDocumento(tratativa, 'folha1');
+            const tempPath = path.join('temp', filename1);
+            
+            // Garantir que o diretório temp existe
+            await fs.promises.mkdir('temp', { recursive: true });
+            
+            // Salvar o PDF
+            await fs.promises.writeFile(tempPath, doppioResponse.data);
 
-            logger.info('Resposta da API Doppio - Folha 1', {
-                operation: 'PDF Task - Folha 1',
-                response: {
-                    status: doppioResponse.status,
-                    data: doppioResponse.data
+            // Criar URL local para o arquivo
+            const localUrl = `/temp/${filename1}`;
+            
+            responseFolha1 = {
+                data: {
+                    documentUrl: localUrl
                 }
+            };
+
+            logger.info('PDF da Folha 1 salvo localmente', {
+                operation: 'PDF Task - Folha 1',
+                localPath: tempPath,
+                localUrl
             });
 
         } catch (error) {
@@ -303,7 +320,7 @@ router.post('/pdftasks', async (req, res) => {
             const errorDetails = {
                 status: error.response?.status,
                 statusText: error.response?.statusText,
-                data: error.response?.data,
+                headers: error.response?.headers,
                 config: {
                     url: error.config?.url,
                     method: error.config?.method,
@@ -329,12 +346,11 @@ router.post('/pdftasks', async (req, res) => {
         }
 
         if (!responseFolha1.data || !responseFolha1.data.documentUrl) {
-            const errorDetail = `Resposta recebida: ${JSON.stringify(responseFolha1.data || {})}`;
             logger.error('Resposta da API sem URL do documento', {
                 operation: 'PDF Task - Folha 1',
                 response_data: responseFolha1.data
             });
-            throw new Error(`Falha ao gerar Folha 1: URL do documento não retornada. ${errorDetail}`);
+            throw new Error('Falha ao gerar Folha 1: URL do documento não retornada');
         }
 
         // Preparar dados para Folha 2
@@ -378,7 +394,7 @@ router.post('/pdftasks', async (req, res) => {
 
         let responseFolha2;
         try {
-            responseFolha2 = await axios({
+            const doppioResponse = await axios({
                 method: 'POST',
                 url: 'https://api.doppio.sh/v1/template/direct',
                 headers: {
@@ -388,25 +404,44 @@ router.post('/pdftasks', async (req, res) => {
                 data: {
                     templateId: process.env.DOPPIO_TEMPLATE_ID_FOLHA2,
                     templateData: templateDataFolha2
-                }
+                },
+                responseType: 'arraybuffer'
             });
 
-            // Log da resposta completa para debug
-            logger.debug('Resposta completa da API Doppio - Folha 2', {
+            // Log da resposta para debug
+            logger.debug('Resposta da API Doppio - Folha 2', {
                 operation: 'PDF Task - Folha 2 Debug',
-                response: responseFolha2
+                status: doppioResponse.status,
+                headers: doppioResponse.headers
             });
 
-            if (!responseFolha2.data) {
+            if (!doppioResponse.data) {
                 throw new Error('Resposta da API sem dados');
             }
 
-            logger.info('Resposta da API Doppio - Folha 2', {
-                operation: 'PDF Task - Folha 2',
-                response: {
-                    status: responseFolha2.status,
-                    data: responseFolha2.data
+            // Salvar o PDF recebido
+            const filename2 = formatarNomeDocumento(tratativa, 'folha2');
+            const tempPath = path.join('temp', filename2);
+            
+            // Garantir que o diretório temp existe
+            await fs.promises.mkdir('temp', { recursive: true });
+            
+            // Salvar o PDF
+            await fs.promises.writeFile(tempPath, doppioResponse.data);
+
+            // Criar URL local para o arquivo
+            const localUrl = `/temp/${filename2}`;
+            
+            responseFolha2 = {
+                data: {
+                    documentUrl: localUrl
                 }
+            };
+
+            logger.info('PDF da Folha 2 salvo localmente', {
+                operation: 'PDF Task - Folha 2',
+                localPath: tempPath,
+                localUrl
             });
 
         } catch (error) {
@@ -426,12 +461,11 @@ router.post('/pdftasks', async (req, res) => {
         }
 
         if (!responseFolha2.data || !responseFolha2.data.documentUrl) {
-            const errorDetail = `Resposta recebida: ${JSON.stringify(responseFolha2.data || {})}`;
             logger.error('Resposta da API sem URL do documento', {
                 operation: 'PDF Task - Folha 2',
                 response_data: responseFolha2.data
             });
-            throw new Error(`Falha ao gerar Folha 2: URL do documento não retornada. ${errorDetail}`);
+            throw new Error('Falha ao gerar Folha 2: URL do documento não retornada');
         }
 
         // Download dos PDFs
