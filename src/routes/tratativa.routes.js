@@ -27,20 +27,26 @@ const ensureDirectoryExists = async (dirPath) => {
 
 // Função auxiliar para formatar nome do documento
 const formatarNomeDocumento = (tratativa, tipo) => {
-    const data = new Date();
-    const timestamp = data.toISOString().replace(/[:.]/g, '-');
-    const numeroDoc = tratativa.numero_tratativa || 'sem-numero';
-    const funcionario = tratativa.funcionario ? tratativa.funcionario.replace(/\s+/g, '_').toLowerCase() : 'sem-nome';
+    const data = new Date(tratativa.data_infracao);
+    const dataFormatada = data.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    }).replace(/\//g, '-');
+    
+    const numeroDoc = tratativa.numero_tratativa || '0000';
+    const funcionario = (tratativa.funcionario || 'SEM NOME').toUpperCase();
+    const setor = (tratativa.setor || 'SEM SETOR').toUpperCase();
     
     switch(tipo) {
         case 'folha1':
-            return `DOC_${numeroDoc}_FOLHA1_${funcionario}_${timestamp}.pdf`;
+            return `${numeroDoc} - ${funcionario} - ${setor} ${dataFormatada}_FOLHA1.pdf`;
         case 'folha2':
-            return `DOC_${numeroDoc}_FOLHA2_${funcionario}_${timestamp}.pdf`;
+            return `${numeroDoc} - ${funcionario} - ${setor} ${dataFormatada}_FOLHA2.pdf`;
         case 'completo':
-            return `TRATATIVA_${numeroDoc}_${funcionario}_${timestamp}.pdf`;
+            return `${numeroDoc} - ${funcionario} - ${setor} ${dataFormatada}.pdf`;
         default:
-            return `documento_${timestamp}.pdf`;
+            return `DOCUMENTO_${dataFormatada}.pdf`;
     }
 };
 
