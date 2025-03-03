@@ -23,7 +23,6 @@
     "handlebars-helpers": "^0.10.0",
     "https": "^1.0.0",
     "pdf-lib": "^1.17.1",
-    "pdf-merger-js": "^4.3.0",
     "puppeteer": "^22.3.0",
     "winston": "^3.11.0"
   },
