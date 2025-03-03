@@ -328,13 +328,13 @@ router.post('/pdftasks', async (req, res) => {
             throw new Error(`Falha ao gerar Folha 1: ${errorMessage}`);
         }
 
-        if (!responseFolha1.data || !responseFolha1.data.url) {
+        if (!responseFolha1.data || !responseFolha1.data.documentUrl) {
             const errorDetail = `Resposta recebida: ${JSON.stringify(responseFolha1.data || {})}`;
-            logger.error('Resposta da API sem URL', {
+            logger.error('Resposta da API sem URL do documento', {
                 operation: 'PDF Task - Folha 1',
                 response_data: responseFolha1.data
             });
-            throw new Error(`Falha ao gerar Folha 1: URL não retornada. ${errorDetail}`);
+            throw new Error(`Falha ao gerar Folha 1: URL do documento não retornada. ${errorDetail}`);
         }
 
         // Preparar dados para Folha 2
@@ -425,8 +425,13 @@ router.post('/pdftasks', async (req, res) => {
             throw new Error(`Falha ao gerar Folha 2: ${errorMessage}`);
         }
 
-        if (!responseFolha2.data || !responseFolha2.data.url) {
-            throw new Error('Falha ao gerar Folha 2: URL não retornada');
+        if (!responseFolha2.data || !responseFolha2.data.documentUrl) {
+            const errorDetail = `Resposta recebida: ${JSON.stringify(responseFolha2.data || {})}`;
+            logger.error('Resposta da API sem URL do documento', {
+                operation: 'PDF Task - Folha 2',
+                response_data: responseFolha2.data
+            });
+            throw new Error(`Falha ao gerar Folha 2: URL do documento não retornada. ${errorDetail}`);
         }
 
         // Download dos PDFs
@@ -435,12 +440,13 @@ router.post('/pdftasks', async (req, res) => {
         
         logger.info('Iniciando download dos PDFs', {
             operation: 'PDF Task - Download',
-            files: [filename1, filename2]
+            files: [filename1, filename2],
+            urls: [responseFolha1.data.documentUrl, responseFolha2.data.documentUrl]
         });
 
         const [file1, file2] = await Promise.all([
-            pdfService.downloadPDF(responseFolha1.data.url, filename1),
-            pdfService.downloadPDF(responseFolha2.data.url, filename2)
+            pdfService.downloadPDF(responseFolha1.data.documentUrl, filename1),
+            pdfService.downloadPDF(responseFolha2.data.documentUrl, filename2)
         ]);
 
         // Merge dos PDFs
