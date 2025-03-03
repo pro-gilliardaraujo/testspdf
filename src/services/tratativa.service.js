@@ -41,21 +41,21 @@ class TratativaService {
     validarDadosFormulario(dados) {
         const camposObrigatorios = {
             numero_documento: 'Número do Documento',
-            nome: 'Nome do Funcionário',
+            nome_funcionario: 'Nome do Funcionário',
             funcao: 'Função',
             setor: 'Setor',
             cpf: 'CPF',
-            descricao_infracao: 'Descrição da Infração',
+            infracao_cometida: 'Descrição da Infração',
             data_infracao: 'Data da Infração',
             hora_infracao: 'Hora da Infração',
-            valor_registrado: 'Valor Registrado',
+            valor_praticado: 'Valor Registrado',
             metrica: 'Métrica',
             valor_limite: 'Valor Limite',
             codigo_infracao: 'Código da Infração',
-            tipo_penalidade: 'Tipo de Penalidade',
-            descricao_penalidade: 'Descrição da Penalidade',
+            penalidade: 'Tipo de Penalidade',
+            texto_infracao: 'Descrição da Penalidade',
             url_imagem: 'URL da Imagem',
-            lider: 'Líder'
+            nome_lider: 'Líder'
         };
 
         const camposFaltantes = [];
@@ -78,7 +78,7 @@ class TratativaService {
         }
 
         // Validação adicional dos valores numéricos
-        if (isNaN(parseFloat(dados.valor_registrado))) {
+        if (isNaN(parseFloat(dados.valor_praticado))) {
             throw new Error('Valor Registrado deve ser um número válido');
         }
 
@@ -102,7 +102,7 @@ class TratativaService {
             });
 
             // Garantir que valores numéricos não sejam nulos e converter para string
-            const valor_registrado = this.formatarValorNumerico(dadosFormulario.valor_registrado);
+            const valor_praticado = this.formatarValorNumerico(dadosFormulario.valor_praticado);
             const valor_limite = this.formatarValorNumerico(dadosFormulario.valor_limite);
             const metrica = this.formatarValorNumerico(dadosFormulario.metrica, 'ocorrências');
 
@@ -110,7 +110,7 @@ class TratativaService {
             logger.info('Valores após processamento', {
                 operation: 'Criar Tratativa - Valores Processados',
                 valores: {
-                    valor_registrado,
+                    valor_praticado,
                     valor_limite,
                     metrica
                 }
@@ -119,23 +119,23 @@ class TratativaService {
             // Preparar dados para o banco
             const dadosTratativa = {
                 numero_tratativa: String(dadosFormulario.numero_documento || '').trim(),
-                funcionario: String(dadosFormulario.nome || '').trim(),
+                funcionario: String(dadosFormulario.nome_funcionario || '').trim(),
                 funcao: String(dadosFormulario.funcao || '').trim(),
                 setor: String(dadosFormulario.setor || '').trim(),
                 cpf: String(dadosFormulario.cpf || '').trim(),
-                data_infracao: this.formatarDataParaBanco(dadosFormulario.data_infracao),
+                data_infracao: dadosFormulario.data_infracao,  // Removida formatação pois já vem no formato correto
                 hora_infracao: String(dadosFormulario.hora_infracao || '').trim(),
                 codigo_infracao: String(dadosFormulario.codigo_infracao || '').trim(),
-                descricao_infracao: String(dadosFormulario.descricao_infracao || '').trim(),
-                penalidade: String(dadosFormulario.tipo_penalidade || '').trim(),
-                texto_infracao: String(dadosFormulario.descricao_penalidade || '').trim(),
-                lider: String(dadosFormulario.lider || '').trim(),
-                valor_praticado: valor_registrado,
+                descricao_infracao: String(dadosFormulario.infracao_cometida || '').trim(),
+                penalidade: String(dadosFormulario.penalidade || '').trim(),
+                texto_infracao: String(dadosFormulario.texto_infracao || '').trim(),
+                lider: String(dadosFormulario.nome_lider || '').trim(),
+                valor_praticado,
                 medida: metrica,
                 texto_limite: valor_limite,
                 url_imagem: String(dadosFormulario.url_imagem || '').trim(),
                 mock: false,
-                status: 'Pendente'
+                status: dadosFormulario.status || 'Pendente'
             };
 
             // Log detalhado dos dados preparados para o banco
@@ -172,12 +172,12 @@ class TratativaService {
                 DOP_FUNCAO: data.funcao,
                 DOP_SETOR: data.setor,
                 DOP_DESC_INFRACAO: data.descricao_infracao,
-                DOP_DATA_INFRACAO: dadosFormulario.data_infracao,
+                DOP_DATA_INFRACAO: this.formatarDataParaBanco(data.data_infracao),
                 DOP_HORA_INFRACAO: data.hora_infracao,
                 DOP_VALOR_REGISTRADO: data.valor_praticado,
                 DOP_METRICA: data.medida,
                 DOP_VALOR_LIMITE: data.texto_limite,
-                DOP_DATA_EXTENSA: this.formatarDataExtensa(dadosFormulario.data_infracao),
+                DOP_DATA_EXTENSA: this.formatarDataExtensa(data.data_infracao),
                 DOP_COD_INFRACAO: data.codigo_infracao,
                 DOP_GRAU_PENALIDADE: data.codigo_infracao.split('-')[0],
                 DOP_DESC_PENALIDADE: data.texto_infracao,
