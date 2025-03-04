@@ -49,6 +49,13 @@ const formatarNomeDocumento = (tratativa, tipo) => {
     }
 };
 
+// Função auxiliar para extrair grau da penalidade do campo penalidade
+const extrairGrauPenalidade = (penalidade) => {
+    if (!penalidade) return null;
+    const match = penalidade.match(/^([P\d]+)\s*-/);
+    return match ? match[1] : null;
+};
+
 // Rota para listar tratativas
 router.get('/list', async (req, res) => {
     try {
@@ -100,8 +107,27 @@ router.post('/pdftasks', async (req, res) => {
         // Log dos dados recuperados
         logger.info('Dados da tratativa recuperados', {
             operation: 'PDF Task',
-            tratativa_id: id
+            tratativa_id: id,
+            dados_tratativa: {
+                ...tratativa,
+                cpf: 'REDACTED',
+                grau_penalidade: extrairGrauPenalidade(tratativa.penalidade) || 'NÃO DEFINIDO'
+            }
         });
+
+        // Validar se o grau_penalidade existe
+        const grauPenalidade = extrairGrauPenalidade(tratativa.penalidade);
+        if (!grauPenalidade) {
+            logger.error('Campo grau_penalidade ausente', {
+                operation: 'PDF Task - Validação',
+                tratativa_id: id,
+                dados_tratativa: {
+                    ...tratativa,
+                    cpf: 'REDACTED'
+                }
+            });
+            throw new Error('Campo grau_penalidade é obrigatório para gerar o PDF');
+        }
 
         // Preparar dados para Folha 1
         const templateDataFolha1 = {
@@ -113,7 +139,7 @@ router.post('/pdftasks', async (req, res) => {
             DOP_DATA_INFRACAO: tratativa.data_infracao,
             DOP_HORA_INFRACAO: tratativa.hora_infracao,
             DOP_COD_INFRACAO: tratativa.codigo_infracao,
-            DOP_GRAU_PENALIDADE: tratativa.grau_penalidade,
+            DOP_GRAU_PENALIDADE: grauPenalidade,
             DOP_DESC_PENALIDADE: tratativa.descricao_infracao,
             DOP_IMAGEM: tratativa.imagem_evidencia1,
             DOP_LIDER: tratativa.lider,
