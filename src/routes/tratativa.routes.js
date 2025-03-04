@@ -60,9 +60,24 @@ const extrairGrauPenalidade = (penalidade) => {
 const formatarDataExtensa = (data) => {
     if (!data) return null;
     
-    // Converter DD/MM/YYYY para objeto Date
-    const [dia, mes, ano] = data.split('/');
-    const dataObj = new Date(ano, mes - 1, dia); // mes - 1 porque em JS os meses vão de 0-11
+    let dia, mes, ano;
+    
+    // Verificar o formato da data
+    if (data.includes('-')) {
+        // Formato YYYY-MM-DD
+        [ano, mes, dia] = data.split('-');
+    } else {
+        // Formato DD/MM/YYYY
+        [dia, mes, ano] = data.split('/');
+    }
+    
+    // Converter para números
+    dia = parseInt(dia);
+    mes = parseInt(mes);
+    ano = parseInt(ano);
+    
+    // Criar objeto Date (mes - 1 porque em JS os meses vão de 0-11)
+    const dataObj = new Date(ano, mes - 1, dia);
     
     // Array com os nomes dos dias da semana
     const diasSemana = [
