@@ -56,6 +56,30 @@ const extrairGrauPenalidade = (penalidade) => {
     return match ? match[1] : null;
 };
 
+// Função auxiliar para formatar data extensa
+const formatarDataExtensa = (data) => {
+    if (!data) return null;
+    
+    // Converter DD/MM/YYYY para objeto Date
+    const [dia, mes, ano] = data.split('/');
+    const dataObj = new Date(ano, mes - 1, dia); // mes - 1 porque em JS os meses vão de 0-11
+    
+    // Array com os nomes dos dias da semana
+    const diasSemana = [
+        'domingo', 'segunda-feira', 'terça-feira', 'quarta-feira',
+        'quinta-feira', 'sexta-feira', 'sábado'
+    ];
+    
+    // Array com os nomes dos meses
+    const meses = [
+        'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+        'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+    ];
+    
+    // Formatar a data extensa
+    return `${diasSemana[dataObj.getDay()]}, ${dia} de ${meses[dataObj.getMonth()]} de ${ano}`;
+};
+
 // Rota para listar tratativas
 router.get('/list', async (req, res) => {
     try {
@@ -143,7 +167,8 @@ router.post('/pdftasks', async (req, res) => {
             DOP_DESC_PENALIDADE: tratativa.descricao_infracao,
             DOP_IMAGEM: tratativa.imagem_evidencia1,
             DOP_LIDER: tratativa.lider,
-            DOP_CPF: tratativa.cpf
+            DOP_CPF: tratativa.cpf,
+            DOP_DATA_EXTENSA: formatarDataExtensa(tratativa.data_infracao)
         };
 
         // Validar campos obrigatórios Folha 1
@@ -160,7 +185,8 @@ router.post('/pdftasks', async (req, res) => {
             'DOP_DESC_PENALIDADE',
             'DOP_IMAGEM',
             'DOP_LIDER',
-            'DOP_CPF'
+            'DOP_CPF',
+            'DOP_DATA_EXTENSA'
         ];
 
         const camposVaziosFolha1 = camposObrigatoriosFolha1.filter(
