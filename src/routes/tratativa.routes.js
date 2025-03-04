@@ -346,6 +346,18 @@ router.post('/pdftasks', async (req, res) => {
             DOP_TEXTO_ADVERTENCIA: tratativa.texto_advertencia
         };
 
+        // Log para debug do campo advertido
+        logger.info('Valores dos campos de penalidade', {
+            operation: 'PDF Task - Debug Penalidade',
+            tratativa_id: id,
+            dados: {
+                penalidade: tratativa.penalidade,
+                advertido: tratativa.advertido,
+                DOP_ADVERTIDO: templateDataFolha2.DOP_ADVERTIDO,
+                DOP_SUSPENSO: templateDataFolha2.DOP_SUSPENSO
+            }
+        });
+
         // Validar campos obrigatórios Folha 2
         const camposObrigatoriosFolha2 = [
             ...camposObrigatoriosFolha1,
