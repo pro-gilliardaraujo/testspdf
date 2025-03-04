@@ -56,6 +56,13 @@ const extrairGrauPenalidade = (penalidade) => {
     return match ? match[1] : null;
 };
 
+// Função auxiliar para extrair descrição da penalidade
+const extrairDescricaoPenalidade = (penalidade) => {
+    if (!penalidade) return null;
+    const match = penalidade.match(/^[P\d]+\s*-\s*(.+)$/);
+    return match ? match[1] : null;
+};
+
 // Função auxiliar para formatar data extensa
 const formatarDataExtensa = (data) => {
     if (!data) return null;
@@ -156,6 +163,8 @@ router.post('/pdftasks', async (req, res) => {
 
         // Validar se o grau_penalidade existe
         const grauPenalidade = extrairGrauPenalidade(tratativa.penalidade);
+        const descricaoPenalidade = extrairDescricaoPenalidade(tratativa.penalidade);
+
         if (!grauPenalidade) {
             logger.error('Campo grau_penalidade ausente', {
                 operation: 'PDF Task - Validação',
@@ -166,6 +175,18 @@ router.post('/pdftasks', async (req, res) => {
                 }
             });
             throw new Error('Campo grau_penalidade é obrigatório para gerar o PDF');
+        }
+
+        if (!descricaoPenalidade) {
+            logger.error('Campo descrição da penalidade ausente', {
+                operation: 'PDF Task - Validação',
+                tratativa_id: id,
+                dados_tratativa: {
+                    ...tratativa,
+                    cpf: 'REDACTED'
+                }
+            });
+            throw new Error('Campo descrição da penalidade é obrigatório para gerar o PDF');
         }
 
         // Preparar dados para Folha 1
@@ -179,7 +200,7 @@ router.post('/pdftasks', async (req, res) => {
             DOP_HORA_INFRACAO: tratativa.hora_infracao,
             DOP_COD_INFRACAO: tratativa.codigo_infracao,
             DOP_GRAU_PENALIDADE: grauPenalidade,
-            DOP_DESC_PENALIDADE: tratativa.descricao_infracao,
+            DOP_DESC_PENALIDADE: descricaoPenalidade,
             DOP_IMAGEM: tratativa.imagem_evidencia1,
             DOP_LIDER: tratativa.lider,
             DOP_CPF: tratativa.cpf,
