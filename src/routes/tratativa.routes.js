@@ -31,7 +31,7 @@ const formatarNomeDocumento = (tratativa, tipo) => {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'
-    });
+    }).replace(/\//g, '-');
     
     const numeroDoc = tratativa.numero_tratativa || '0000';
     const funcionario = (tratativa.funcionario || 'SEM NOME').toUpperCase();
@@ -100,6 +100,17 @@ const formatarDataExtensa = (data) => {
     
     // Formatar a data extensa
     return `${diasSemana[dataObj.getDay()]}, ${dia} de ${meses[dataObj.getMonth()]} de ${ano}`;
+};
+
+// Função auxiliar para formatar data no formato brasileiro (DD/MM/YYYY)
+const formatarDataBrasileira = (data) => {
+    if (!data) return null;
+    const dataObj = new Date(data);
+    return dataObj.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
 };
 
 // Rota para listar tratativas
@@ -196,7 +207,7 @@ router.post('/pdftasks', async (req, res) => {
             DOP_FUNCAO: tratativa.funcao,
             DOP_SETOR: tratativa.setor,
             DOP_DESC_INFRACAO: tratativa.descricao_infracao,
-            DOP_DATA_INFRACAO: tratativa.data_infracao,
+            DOP_DATA_INFRACAO: formatarDataBrasileira(tratativa.data_infracao),
             DOP_HORA_INFRACAO: tratativa.hora_infracao,
             DOP_COD_INFRACAO: tratativa.codigo_infracao,
             DOP_GRAU_PENALIDADE: grauPenalidade,
