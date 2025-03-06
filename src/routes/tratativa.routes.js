@@ -31,7 +31,7 @@ const formatarNomeDocumento = (tratativa, tipo) => {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'
-    }).replace(/\//g, '-');
+    });
     
     const numeroDoc = tratativa.numero_tratativa || '0000';
     const funcionario = (tratativa.funcionario || 'SEM NOME').toUpperCase();
