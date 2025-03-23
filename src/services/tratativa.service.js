@@ -175,7 +175,7 @@ class TratativaService {
                 DOP_DATA: this.formatarDataParaBanco(data.data_infracao),
                 DOP_HORA: data.hora_infracao,
                 DOP_DATA_EXTENSA: this.formatarDataExtensa(data.data_infracao),
-                DOP_COD_INFRACAO: data.codigo_infracao,
+                DOP_CODIGO: data.codigo_infracao,
                 DOP_GRAU: data.codigo_infracao.split('-')[0],
                 DOP_PENALIDADE: data.texto_infracao,
                 DOP_IMAGEM: data.url_imagem,

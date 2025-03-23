@@ -99,7 +99,7 @@ POST https://iblogistica.ddns.net:3000/api/tratativa/generate
     
     // Dados específicos Folha 1
     "DOP_DATA_EXTENSA": "sexta-feira, 28 de fevereiro de 2025",
-    "DOP_COD_INFRACAO": "5",
+    "DOP_CODIGO": "5",
     "DOP_GRAU": "P2",
     "DOP_PENALIDADE": "Advertência Escrita",
     "DOP_IMAGEM": "url_da_imagem",
@@ -151,7 +151,7 @@ const gerarDocumento = async (tratativa: TratativaData) => {
           DOP_DATA_EXTENSA: formatarDataExtensa(tratativa.data),
           DOP_FUNCAO: tratativa.funcao,
           DOP_SETOR: tratativa.setor,
-          DOP_COD_INFRACAO: tratativa.codigo_infracao,
+          DOP_CODIGO: tratativa.codigo_infracao,
           DOP_DESCRICAO: tratativa.descricao_infracao,
           DOP_DATA: formatarData(tratativa.data_infracao),
           DOP_HORA: tratativa.hora_infracao,
