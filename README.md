@@ -92,23 +92,20 @@ POST https://iblogistica.ddns.net:3000/api/tratativa/generate
     "DOP_NOME": "João da Silva Santos",
     "DOP_FUNCAO": "Motorista",
     "DOP_SETOR": "Logística",
-    "DOP_DESC_INFRACAO": "Excesso de Velocidade",
-    "DOP_DATA_INFRACAO": "28/02/2025",
-    "DOP_HORA_INFRACAO": "14:30",
-    "DOP_VALOR_REGISTRADO": "20",
-    "DOP_METRICA": "km/h",
-    "DOP_VALOR_LIMITE": "15",
+    "DOP_DESCRICAO": "Excesso de Velocidade",
+    "DOP_DATA": "28/02/2025",
+    "DOP_HORA": "14:30",
+    "DOP_CPF": "123.456.789-10",
     
     // Dados específicos Folha 1
     "DOP_DATA_EXTENSA": "sexta-feira, 28 de fevereiro de 2025",
     "DOP_COD_INFRACAO": "5",
-    "DOP_GRAU_PENALIDADE": "P2",
-    "DOP_DESC_PENALIDADE": "Advertência Escrita",
+    "DOP_GRAU": "P2",
+    "DOP_PENALIDADE": "Advertência Escrita",
     "DOP_IMAGEM": "url_da_imagem",
     "DOP_LIDER": "Maria Oliveira Costa",
     
     // Dados específicos Folha 2
-    "DOP_CPF": "123.456.789-10",
     "tipo_penalidade": "Advertência" // ou "Suspensão"
   }
 }
@@ -155,15 +152,12 @@ const gerarDocumento = async (tratativa: TratativaData) => {
           DOP_FUNCAO: tratativa.funcao,
           DOP_SETOR: tratativa.setor,
           DOP_COD_INFRACAO: tratativa.codigo_infracao,
-          DOP_DESC_INFRACAO: tratativa.descricao_infracao,
-          DOP_DATA_INFRACAO: formatarData(tratativa.data_infracao),
-          DOP_HORA_INFRACAO: tratativa.hora_infracao,
-          DOP_GRAU_PENALIDADE: tratativa.grau_penalidade,
-          DOP_DESC_PENALIDADE: tratativa.descricao_penalidade,
+          DOP_DESCRICAO: tratativa.descricao_infracao,
+          DOP_DATA: formatarData(tratativa.data_infracao),
+          DOP_HORA: tratativa.hora_infracao,
+          DOP_GRAU: tratativa.grau_penalidade,
+          DOP_PENALIDADE: tratativa.descricao_penalidade,
           DOP_IMAGEM: tratativa.url_imagem,
-          DOP_VALOR_REGISTRADO: tratativa.valor_registrado,
-          DOP_METRICA: tratativa.metrica,
-          DOP_VALOR_LIMITE: tratativa.valor_limite,
           DOP_LIDER: tratativa.lider,
           DOP_CPF: tratativa.cpf,
           tipo_penalidade: tratativa.tipo_penalidade

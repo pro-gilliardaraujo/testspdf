@@ -1,0 +1,26 @@
+{
+    "dados_comuns": {
+        "DOP_NUMERO_DOCUMENTO": "",
+        "DOP_NOME": "",
+        "DOP_FUNCAO": "",
+        "DOP_SETOR": "",
+        "DOP_DESCRICAO": "",
+        "DOP_DATA": "",
+        "DOP_HORA": "",
+        "DOP_CPF": ""
+    },
+    "dados_folha1": {
+        "DOP_DATA_EXTENSA": "",
+        "DOP_COD_INFRACAO": "",
+        "DOP_GRAU": "",
+        "DOP_PENALIDADE": "",
+        "DOP_IMAGEM": "",
+        "DOP_LIDER": ""
+    },
+    "dados_folha2": {
+        "tipo_penalidade": "",
+        "DOP_ADVERTIDO": "",
+        "DOP_SUSPENSO": "",
+        "DOP_TEXTO_ADVERTENCIA": ""
+    }
+}
