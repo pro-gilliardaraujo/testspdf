@@ -78,9 +78,31 @@ class SupabaseService {
                 operation: 'Upload File',
                 details: {
                     path,
-                    fileSize: file.length
+                    fileSize: file.length,
+                    destinationBucket: 'tratativas',
+                    fullPath: `storage/tratativas/${path}`
                 }
             });
+
+            // Verificar se o arquivo já existe
+            const { data: existingFile } = await supabase
+                .storage
+                .from('tratativas')
+                .list(path.split('/').slice(0, -1).join('/'));
+
+            const fileName = path.split('/').pop();
+            const fileExists = existingFile?.some(f => f.name === fileName);
+
+            if (fileExists) {
+                logger.info('Arquivo já existe, será substituído', {
+                    operation: 'Upload File',
+                    details: {
+                        path,
+                        fileName,
+                        action: 'replace'
+                    }
+                });
+            }
 
             const { data, error } = await supabase
                 .storage
@@ -106,20 +128,51 @@ class SupabaseService {
                     }
                 });
 
+            // Log detalhado do sucesso do upload
             logger.info('Arquivo enviado com sucesso', {
                 operation: 'Upload File',
                 details: {
+                    status: 'success',
                     path,
+                    fileName,
+                    destinationBucket: 'tratativas',
+                    fullPath: `storage/tratativas/${path}`,
+                    fileSize: file.length,
                     publicUrl: urlData.signedUrl,
-                    uploadResponse: data
+                    uploadResponse: data,
+                    signedUrlExpiration: '1 ano',
+                    contentType: 'application/pdf',
+                    disposition: 'inline'
+                }
+            });
+
+            // Log específico para rastreamento do documento
+            logger.info('Documento disponível para visualização', {
+                operation: 'Document Tracking',
+                details: {
+                    documentPath: path,
+                    accessUrl: urlData.signedUrl,
+                    bucket: 'tratativas',
+                    storagePath: `storage/tratativas/${path}`,
+                    expirationDate: new Date(Date.now() + 31536000 * 1000).toISOString()
                 }
             });
 
             return urlData.signedUrl;
         } catch (error) {
-            logger.logError('Erro no upload do arquivo', error, {
+            logger.error('Erro no upload do arquivo', {
                 operation: 'Upload File',
-                details: { path }
+                error: {
+                    message: error.message,
+                    code: error.code,
+                    details: error.details
+                },
+                details: {
+                    path,
+                    destinationBucket: 'tratativas',
+                    attemptedFullPath: `storage/tratativas/${path}`,
+                    fileSize: file.length
+                }
             });
             throw error;
         }
@@ -155,6 +208,66 @@ class SupabaseService {
                 details: { id }
             });
             return { data: null, error };
+        }
+    }
+
+    async cleanupTempFiles(tratativaNumero) {
+        try {
+            logger.info('Iniciando limpeza de arquivos temporários no bucket', {
+                operation: 'Cleanup Temp Files',
+                details: {
+                    tratativa: tratativaNumero
+                }
+            });
+
+            // Listar arquivos na pasta temp relacionados a esta tratativa
+            const { data: files, error: listError } = await supabase
+                .storage
+                .from('tratativas')
+                .list(`temp/${tratativaNumero}`);
+
+            if (listError) {
+                throw listError;
+            }
+
+            if (files && files.length > 0) {
+                // Criar array de paths para deletar
+                const filesToDelete = files.map(file => `temp/${tratativaNumero}/${file.name}`);
+
+                // Deletar arquivos
+                const { error: deleteError } = await supabase
+                    .storage
+                    .from('tratativas')
+                    .remove(filesToDelete);
+
+                if (deleteError) {
+                    throw deleteError;
+                }
+
+                logger.info('Arquivos temporários removidos com sucesso', {
+                    operation: 'Cleanup Temp Files',
+                    details: {
+                        tratativa: tratativaNumero,
+                        filesRemoved: filesToDelete
+                    }
+                });
+            } else {
+                logger.info('Nenhum arquivo temporário encontrado para limpeza', {
+                    operation: 'Cleanup Temp Files',
+                    details: {
+                        tratativa: tratativaNumero
+                    }
+                });
+            }
+        } catch (error) {
+            logger.error('Erro ao limpar arquivos temporários no bucket', {
+                operation: 'Cleanup Temp Files',
+                error: error.message,
+                details: {
+                    tratativa: tratativaNumero
+                }
+            });
+            throw error;
         }
     }
 }

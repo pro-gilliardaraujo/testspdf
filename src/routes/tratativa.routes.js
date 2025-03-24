@@ -132,6 +132,10 @@ router.get('/list', async (req, res) => {
 
 // Rota para processar geração de PDF
 router.post('/pdftasks', async (req, res) => {
+    // Array to track temporary files for cleanup
+    const tempFiles = [];
+    const startTime = Date.now();
+    
     try {
         const { id } = req.body;
 
@@ -141,7 +145,12 @@ router.post('/pdftasks', async (req, res) => {
 
         logger.info('Iniciando processamento de PDF', {
             operation: 'PDF Task',
-            tratativa_id: id
+            tratativa_id: id,
+            request_body: {
+                ...req.body,
+                cpf: 'REDACTED' // Proteger dados sensíveis
+            },
+            timestamp: new Date().toISOString()
         });
 
         // Definir diretório temporário no início do processamento
@@ -280,10 +289,11 @@ router.post('/pdftasks', async (req, res) => {
 
             // Salvar o PDF recebido
             const filename1 = formatarNomeDocumento(tratativa, 'folha1');
-            const tempPath = path.join(tempDir, filename1);
+            const tempPath1 = path.join(tempDir, filename1);
+            tempFiles.push(tempPath1); // Track temporary file
             
             // Salvar o PDF
-            await writeFile(tempPath, doppioResponse.data);
+            await writeFile(tempPath1, doppioResponse.data);
 
             // Criar URL completo para o arquivo
             const serverUrl = `https://${req.get('host')}`;
@@ -420,10 +430,11 @@ router.post('/pdftasks', async (req, res) => {
 
             // Salvar o PDF recebido
             const filename2 = formatarNomeDocumento(tratativa, 'folha2');
-            const tempPath = path.join(tempDir, filename2);
+            const tempPath2 = path.join(tempDir, filename2);
+            tempFiles.push(tempPath2); // Track temporary file
             
             // Salvar o PDF
-            await writeFile(tempPath, doppioResponse.data);
+            await writeFile(tempPath2, doppioResponse.data);
 
             // Criar URL completo para o arquivo
             const serverUrl = `https://${req.get('host')}`;
@@ -505,37 +516,93 @@ router.post('/pdftasks', async (req, res) => {
         // Merge dos PDFs
         const mergedFilename = formatarNomeDocumento(tratativa, 'completo');
         const mergedFile = await pdfService.mergePDFs([file1, file2], mergedFilename);
+        tempFiles.push(mergedFile);
+
+        // Log do arquivo mesclado
+        logger.info('PDFs mesclados com sucesso', {
+            operation: 'PDF Merge',
+            details: {
+                originalFiles: [filename1, filename2],
+                mergedFile: mergedFilename,
+                fileSize: (await fs.promises.stat(mergedFile)).size
+            }
+        });
 
         // Upload para o Supabase
         const fileContent = await readFile(mergedFile);
+        
+        // Log do início do upload
+        logger.info('Iniciando upload do documento final', {
+            operation: 'PDF Upload',
+            details: {
+                filename: mergedFilename,
+                fileSize: fileContent.length,
+                tratativa_id: id,
+                numero_tratativa: tratativa.numero_tratativa
+            }
+        });
+
         const supabasePath = `tratativas/enviadas/${tratativa.numero_tratativa}/${mergedFilename}`;
         const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
 
         // Atualizar URL do documento na tratativa
         await supabaseService.updateDocumentUrl(id, publicUrl);
 
-        // Limpar arquivos temporários
-        await pdfService.cleanupFiles([file1, file2, mergedFile]);
+        // Log do processo completo
+        const processingTime = Date.now() - startTime;
+        logger.info('Processo de geração e upload concluído', {
+            operation: 'PDF Task Complete',
+            details: {
+                tratativa_id: id,
+                numero_tratativa: tratativa.numero_tratativa,
+                processingTimeMs: processingTime,
+                documentPath: supabasePath,
+                publicUrl: publicUrl,
+                fileSize: fileContent.length,
+                tempFilesCreated: tempFiles.length,
+                status: 'success'
+            }
+        });
 
         // Resposta de sucesso
         const response = {
             status: 'success',
             message: 'Documento PDF gerado com sucesso',
             id,
-            url: publicUrl
+            url: publicUrl,
+            processingTime: `${(processingTime / 1000).toFixed(2)}s`
         };
 
         res.json(response);
-        logger.info('Documento gerado e salvo com sucesso', {
-            operation: 'PDF Task',
-            url: publicUrl
-        });
 
     } catch (error) {
+        const processingTime = Date.now() - startTime;
         logger.error('Erro no processamento do documento', {
-            operation: 'PDF Task',
-            error: error.message
+            operation: 'PDF Task Error',
+            error: {
+                message: error.message,
+                stack: error.stack
+            },
+            details: {
+                tratativa_id: req.body.id,
+                processingTimeMs: processingTime,
+                tempFilesCount: tempFiles.length,
+                status: 'error'
+            }
         });
+
+        // Tentar limpar arquivos temporários mesmo em caso de erro
+        try {
+            if (tempFiles.length > 0) {
+                await pdfService.cleanupFiles(tempFiles);
+            }
+        } catch (cleanupError) {
+            logger.error('Erro ao limpar arquivos temporários após falha', {
+                operation: 'PDF Task - Error Cleanup',
+                error: cleanupError.message
+            });
+        }
+
         res.status(500).json({
             status: 'error',
             message: 'Erro ao processar PDF',

@@ -7,6 +7,8 @@ const path = require('path');
 const logger = require('./utils/logger');
 const corsOptions = require('./config/cors');
 const tratativaRoutes = require('./routes/tratativa.routes');
+const pdfService = require('./services/pdf.service');
+const supabaseService = require('./services/supabase.service');
 
 const app = express();
 
@@ -32,6 +34,74 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/tratativa', tratativaRoutes);
+
+// Função para limpar arquivos temporários locais
+const cleanupLocalTempFiles = async () => {
+    try {
+        const tempDir = path.join(process.cwd(), 'temp');
+        const files = await fs.promises.readdir(tempDir);
+        
+        if (files.length > 0) {
+            logger.info('Iniciando limpeza periódica de arquivos temporários locais', {
+                operation: 'Periodic Cleanup',
+                fileCount: files.length
+            });
+
+            await pdfService.cleanupFiles(files.map(file => path.join(tempDir, file)));
+
+            logger.info('Limpeza periódica de arquivos temporários locais concluída', {
+                operation: 'Periodic Cleanup',
+                filesRemoved: files.length
+            });
+        }
+    } catch (error) {
+        logger.error('Erro na limpeza periódica de arquivos temporários locais', {
+            operation: 'Periodic Cleanup',
+            error: error.message
+        });
+    }
+};
+
+// Função para limpar arquivos temporários no Supabase
+const cleanupSupabaseTempFiles = async () => {
+    try {
+        logger.info('Iniciando limpeza periódica de arquivos temporários no Supabase', {
+            operation: 'Periodic Supabase Cleanup'
+        });
+
+        const { data: folders, error: listError } = await supabase
+            .storage
+            .from('tratativas')
+            .list('temp');
+
+        if (listError) throw listError;
+
+        if (folders && folders.length > 0) {
+            for (const folder of folders) {
+                await supabaseService.cleanupTempFiles(folder.name);
+            }
+        }
+
+        logger.info('Limpeza periódica de arquivos temporários no Supabase concluída', {
+            operation: 'Periodic Supabase Cleanup'
+        });
+    } catch (error) {
+        logger.error('Erro na limpeza periódica de arquivos temporários no Supabase', {
+            operation: 'Periodic Supabase Cleanup',
+            error: error.message
+        });
+    }
+};
+
+// Agendar limpeza periódica (a cada 6 horas)
+setInterval(async () => {
+    await cleanupLocalTempFiles();
+    await cleanupSupabaseTempFiles();
+}, 6 * 60 * 60 * 1000);
+
+// Executar limpeza inicial ao iniciar o servidor
+cleanupLocalTempFiles();
+cleanupSupabaseTempFiles();
 
 // Error handling middleware
 app.use((err, req, res, next) => {
