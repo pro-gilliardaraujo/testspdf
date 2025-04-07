@@ -16,8 +16,59 @@ const readFile = util.promisify(fs.readFile);
 // Função auxiliar para garantir que um diretório existe
 const ensureDirectoryExists = async (dirPath) => {
     try {
-        await mkdir(dirPath, { recursive: true });
+        logger.info('Verificando diretório temporário', {
+            operation: 'Directory Check',
+            dirPath: dirPath
+        });
+        
+        // Verificar se o diretório existe
+        try {
+            await fs.promises.access(dirPath);
+            logger.info('Diretório temporário já existe', {
+                operation: 'Directory Check',
+                dirPath: dirPath
+            });
+        } catch (accessError) {
+            // Se não existir, tentar criar
+            logger.info('Criando diretório temporário', {
+                operation: 'Directory Creation',
+                dirPath: dirPath
+            });
+            
+            await mkdir(dirPath, { recursive: true });
+            
+            logger.info('Diretório temporário criado com sucesso', {
+                operation: 'Directory Creation',
+                dirPath: dirPath
+            });
+        }
+        
+        // Verificar permissões (tentar criar um arquivo de teste)
+        const testFilePath = path.join(dirPath, '.test_write_access');
+        try {
+            await fs.promises.writeFile(testFilePath, 'test');
+            await fs.promises.unlink(testFilePath);
+            
+            logger.info('Diretório temporário tem permissões de escrita', {
+                operation: 'Directory Permission Check',
+                dirPath: dirPath
+            });
+        } catch (permError) {
+            logger.error('Erro de permissão no diretório temporário', {
+                operation: 'Directory Permission Check',
+                dirPath: dirPath,
+                error: permError.message
+            });
+            throw new Error(`Sem permissão para escrever no diretório temporário: ${dirPath}`);
+        }
     } catch (error) {
+        logger.error('Erro ao garantir existência do diretório', {
+            operation: 'Directory Check',
+            dirPath: dirPath,
+            error: error.message,
+            stack: error.stack
+        });
+        
         if (error.code !== 'EEXIST') {
             throw error;
         }
@@ -34,19 +85,38 @@ const formatarNomeDocumento = (tratativa, tipo) => {
     }).replace(/\//g, '-');
     
     const numeroDoc = tratativa.numero_tratativa || '0000';
-    const funcionario = (tratativa.funcionario || 'SEM NOME').toUpperCase();
-    const setor = (tratativa.setor || 'SEM SETOR').toUpperCase();
     
+    // Sanitização dos campos para remover caracteres problemáticos
+    const funcionario = (tratativa.funcionario || 'SEM NOME')
+        .toUpperCase()
+        .replace(/[\/\\:*?"<>|]/g, '_'); // Remover caracteres especiais
+    
+    const setor = (tratativa.setor || 'SEM SETOR')
+        .toUpperCase()
+        .replace(/[\/\\:*?"<>|]/g, '_'); // Remover caracteres especiais
+    
+    // Limitar o tamanho do nome para evitar caminhos muito longos
+    const funcionarioTruncado = funcionario.length > 30 ? funcionario.substring(0, 30) : funcionario;
+    const setorTruncado = setor.length > 20 ? setor.substring(0, 20) : setor;
+    
+    // Construir o nome do arquivo com base no tipo
+    let nomeArquivo;
     switch(tipo) {
         case 'folha1':
-            return `${numeroDoc} - ${funcionario} - ${setor} ${dataFormatada}_FOLHA1.pdf`;
+            nomeArquivo = `${numeroDoc}_${funcionarioTruncado}_${setorTruncado}_${dataFormatada}_FOLHA1.pdf`;
+            break;
         case 'folha2':
-            return `${numeroDoc} - ${funcionario} - ${setor} ${dataFormatada}_FOLHA2.pdf`;
+            nomeArquivo = `${numeroDoc}_${funcionarioTruncado}_${setorTruncado}_${dataFormatada}_FOLHA2.pdf`;
+            break;
         case 'completo':
-            return `${numeroDoc} - ${funcionario} - ${setor} ${dataFormatada}.pdf`;
+            nomeArquivo = `${numeroDoc}_${funcionarioTruncado}_${setorTruncado}_${dataFormatada}.pdf`;
+            break;
         default:
-            return `DOCUMENTO_${dataFormatada}.pdf`;
+            nomeArquivo = `DOCUMENTO_${dataFormatada}.pdf`;
     }
+    
+    // Substituir espaços por underscores para evitar problemas
+    return nomeArquivo.replace(/\s+/g, '_');
 };
 
 // Função auxiliar para extrair grau da penalidade do campo penalidade
@@ -375,11 +445,35 @@ router.post('/pdftasks', async (req, res) => {
             const filename1 = formatarNomeDocumento(tratativa, 'folha1');
             
             logger.info('Iniciando processamento final do documento (Folha Única)', {
-                operation: 'PDF Task Single Page'
+                operation: 'PDF Task Single Page',
+                details: {
+                    filename: filename1,
+                    tempDir: tempDir
+                }
             });
 
             const file1 = await pdfService.downloadPDF(responseFolha1.data.documentUrl, filename1);
             tempFiles.push(file1);
+
+            // Adicionar log para verificar o arquivo
+            try {
+                const fileStats = await fs.promises.stat(file1);
+                logger.info('Arquivo PDF baixado com sucesso', {
+                    operation: 'PDF Task',
+                    details: {
+                        filePath: file1,
+                        fileSize: fileStats.size,
+                        exists: true
+                    }
+                });
+            } catch (statError) {
+                logger.error('Erro ao verificar arquivo baixado', {
+                    operation: 'PDF Task',
+                    error: statError.message,
+                    filePath: file1
+                });
+                // Continue mesmo com erro, para ver se conseguimos identificar o problema
+            }
 
             // Upload para o Supabase (usando a Folha 1 diretamente)
             const fileContent = await readFile(file1);
@@ -891,13 +985,36 @@ router.post('/pdftasks/single', async (req, res) => {
 
         // Download do PDF
         const filename1 = formatarNomeDocumento(tratativa, 'folha1');
-        
         logger.info('Iniciando processamento final do documento (Folha Única)', {
-            operation: 'PDF Task Single Page'
+            operation: 'PDF Task Single Page',
+            details: {
+                filename: filename1,
+                tempDir: tempDir
+            }
         });
 
         const file1 = await pdfService.downloadPDF(responseFolha1.data.documentUrl, filename1);
         tempFiles.push(file1);
+
+        // Adicionar log para verificar o arquivo
+        try {
+            const fileStats = await fs.promises.stat(file1);
+            logger.info('Arquivo PDF baixado com sucesso', {
+                operation: 'PDF Task Single',
+                details: {
+                    filePath: file1,
+                    fileSize: fileStats.size,
+                    exists: true
+                }
+            });
+        } catch (statError) {
+            logger.error('Erro ao verificar arquivo baixado', {
+                operation: 'PDF Task Single',
+                error: statError.message,
+                filePath: file1
+            });
+            // Continue mesmo com erro, para ver se conseguimos identificar o problema
+        }
 
         // Upload para o Supabase (usando a Folha 1 diretamente)
         const fileContent = await readFile(file1);

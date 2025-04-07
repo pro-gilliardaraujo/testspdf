@@ -11,6 +11,21 @@ class PDFService {
                 operation: 'Download PDF',
                 details: { url, filename }
             });
+            
+            // Verificar e criar diretório temp se necessário
+            const tempDir = path.join(process.cwd(), 'temp');
+            try {
+                await fs.promises.access(tempDir);
+            } catch (err) {
+                logger.info('Criando diretório temporário para download', {
+                    operation: 'Download PDF',
+                    tempDir
+                });
+                await fs.promises.mkdir(tempDir, { recursive: true });
+            }
+            
+            // Aplicar o caminho completo para o arquivo
+            const filePath = path.join(tempDir, filename);
 
             const response = await axios({
                 method: 'GET',
@@ -18,21 +33,35 @@ class PDFService {
                 responseType: 'arraybuffer'
             });
 
-            await fs.writeFile(filename, response.data);
-            
-            logger.info('Download do PDF concluído', {
+            logger.info('Download do PDF concluído, salvando arquivo', {
                 operation: 'Download PDF',
                 details: {
-                    filename,
+                    filePath,
                     size: response.data.length
                 }
             });
+            
+            await fs.promises.writeFile(filePath, response.data);
+            
+            logger.info('Arquivo PDF salvo com sucesso', {
+                operation: 'Download PDF',
+                details: {
+                    filePath,
+                    size: response.data.length,
+                    exists: await this._fileExists(filePath)
+                }
+            });
 
-            return filename;
+            return filePath;
         } catch (error) {
-            logger.logError('Erro no download do PDF', error, {
-                url,
-                filename
+            logger.error('Erro no download do PDF', {
+                operation: 'Download PDF',
+                error: {
+                    message: error.message,
+                    stack: error.stack,
+                    code: error.code
+                },
+                details: { url, filename }
             });
             throw error;
         }
@@ -111,6 +140,16 @@ class PDFService {
                 files
             });
             throw error;
+        }
+    }
+
+    // Método auxiliar para verificar existência de arquivo
+    async _fileExists(filePath) {
+        try {
+            await fs.promises.access(filePath);
+            return true;
+        } catch (err) {
+            return false;
         }
     }
 }
