@@ -271,25 +271,25 @@ class SupabaseService {
         }
     }
 
-    async getTratativaByNumeroDocumento(numeroDocumento) {
+    async getTratativaByNumeroTratativa(numeroTratativa) {
         try {
-            logger.info('Buscando tratativa por número do documento', {
+            logger.info('Buscando tratativa por número da tratativa', {
                 operation: 'Get Tratativa By Number',
-                details: { numeroDocumento }
+                details: { numeroTratativa }
             });
 
             const { data, error } = await supabase
                 .from('tratativas')
                 .select('*')
-                .eq('numero_tratativa', numeroDocumento)
+                .eq('numero_tratativa', numeroTratativa)
                 .single();
 
             if (error) throw error;
 
-            logger.info('Tratativa recuperada por número do documento', {
+            logger.info('Tratativa recuperada por número da tratativa', {
                 operation: 'Get Tratativa By Number',
                 details: {
-                    numeroDocumento,
+                    numeroTratativa,
                     found: !!data,
                     tratativaId: data?.id
                 }
@@ -297,13 +297,13 @@ class SupabaseService {
 
             return { data, error: null };
         } catch (error) {
-            logger.error('Erro ao buscar tratativa por número do documento', {
+            logger.error('Erro ao buscar tratativa por número da tratativa', {
                 operation: 'Get Tratativa By Number',
                 error: {
                     message: error.message,
                     stack: error.stack
                 },
-                details: { numeroDocumento }
+                details: { numeroTratativa }
             });
             return { data: null, error };
         }

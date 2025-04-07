@@ -207,17 +207,17 @@ router.post('/pdftasks', async (req, res) => {
     const startTime = Date.now();
     
     try {
-        const { id, numero_documento, folhaUnica } = req.body;
+        const { id, numero_tratativa, folhaUnica } = req.body;
 
         // Verificar se pelo menos um identificador foi fornecido
-        if (!id && !numero_documento) {
-            throw new Error('É necessário fornecer ID ou número do documento');
+        if (!id && !numero_tratativa) {
+            throw new Error('É necessário fornecer ID ou número da tratativa');
         }
 
         // Log informando o tipo de identificador e se é geração de folha única
         logger.info('Iniciando processamento de PDF', {
             operation: 'PDF Task',
-            identificador: id ? `ID: ${id}` : `Número do documento: ${numero_documento}`,
+            identificador: id ? `ID: ${id}` : `Número da tratativa: ${numero_tratativa}`,
             tipo: folhaUnica ? 'Folha Única' : 'Documento Completo',
             request_body: {
                 ...req.body,
@@ -232,12 +232,12 @@ router.post('/pdftasks', async (req, res) => {
         // Garantir que o diretório temp existe
         await ensureDirectoryExists(tempDir);
 
-        // Buscar dados da tratativa (por ID ou por número de documento)
+        // Buscar dados da tratativa (por ID ou por número da tratativa)
         let tratativaResult;
         if (id) {
             tratativaResult = await supabaseService.getTratativaById(id);
         } else {
-            tratativaResult = await supabaseService.getTratativaByNumeroDocumento(numero_documento);
+            tratativaResult = await supabaseService.getTratativaByNumeroTratativa(numero_tratativa);
         }
 
         const { data: tratativa, error: fetchError } = tratativaResult;
@@ -245,14 +245,14 @@ router.post('/pdftasks', async (req, res) => {
         if (fetchError) {
             const errorMsg = id 
                 ? `Erro ao buscar tratativa pelo ID: ${fetchError.message}` 
-                : `Erro ao buscar tratativa pelo número do documento: ${fetchError.message}`;
+                : `Erro ao buscar tratativa pelo número: ${fetchError.message}`;
             throw new Error(errorMsg);
         }
 
         if (!tratativa) {
             const errorMsg = id 
                 ? `Tratativa com ID ${id} não encontrada` 
-                : `Tratativa com número ${numero_documento} não encontrada`;
+                : `Tratativa com número ${numero_tratativa} não encontrada`;
             throw new Error(errorMsg);
         }
 
@@ -779,7 +779,7 @@ router.post('/pdftasks', async (req, res) => {
                 stack: error.stack
             },
             details: {
-                identificador: id ? `ID: ${id}` : numero_documento ? `Número do documento: ${numero_documento}` : 'Não fornecido',
+                identificador: id ? `ID: ${id}` : numero_tratativa ? `Número da tratativa: ${numero_tratativa}` : 'Não fornecido',
                 processingTimeMs: processingTime,
                 tempFilesCount: tempFiles.length,
                 status: 'error'
@@ -808,19 +808,19 @@ router.post('/pdftasks', async (req, res) => {
 
 // Rota específica para processar geração de PDF de folha única
 router.post('/pdftasks/single', async (req, res) => {
-    const { id, numero_documento } = req.body;
+    const { id, numero_tratativa } = req.body;
     
     // Verificar se pelo menos um identificador foi fornecido
-    if (!id && !numero_documento) {
+    if (!id && !numero_tratativa) {
         return res.status(400).json({
             status: 'error',
-            message: 'É necessário fornecer ID ou número do documento'
+            message: 'É necessário fornecer ID ou número da tratativa'
         });
     }
     
     logger.info('Requisição para geração de PDF de folha única recebida', {
         operation: 'PDF Single Page Request',
-        identificador: id ? `ID: ${id}` : `Número do documento: ${numero_documento}`
+        identificador: id ? `ID: ${id}` : `Número da tratativa: ${numero_tratativa}`
     });
     
     // Adicionar o parâmetro folhaUnica e repassar para a rota principal
@@ -835,7 +835,7 @@ router.post('/pdftasks/single', async (req, res) => {
     try {
         // O resto do código pode continuar igual ao da rota /pdftasks
         // já que adicionamos o parâmetro folhaUnica = true e modificamos
-        // para aceitar tanto ID quanto número de documento
+        // para aceitar tanto ID quanto número de tratativa
         
         logger.info('Iniciando processamento de PDF (Folha Única)', {
             operation: 'PDF Task',
@@ -854,15 +854,28 @@ router.post('/pdftasks/single', async (req, res) => {
         // Garantir que o diretório temp existe
         await ensureDirectoryExists(tempDir);
 
-        // Buscar dados da tratativa
-        const { data: tratativa, error: fetchError } = await supabaseService.getTratativaById(id);
+        // Buscar dados da tratativa (por ID ou por número da tratativa)
+        let tratativaResult;
+        if (id) {
+            tratativaResult = await supabaseService.getTratativaById(id);
+        } else {
+            tratativaResult = await supabaseService.getTratativaByNumeroTratativa(numero_tratativa);
+        }
+
+        const { data: tratativa, error: fetchError } = tratativaResult;
 
         if (fetchError) {
-            throw new Error(`Erro ao buscar tratativa: ${fetchError.message}`);
+            const errorMsg = id 
+                ? `Erro ao buscar tratativa pelo ID: ${fetchError.message}` 
+                : `Erro ao buscar tratativa pelo número: ${fetchError.message}`;
+            throw new Error(errorMsg);
         }
 
         if (!tratativa) {
-            throw new Error('Tratativa não encontrada');
+            const errorMsg = id 
+                ? `Tratativa com ID ${id} não encontrada` 
+                : `Tratativa com número ${numero_tratativa} não encontrada`;
+            throw new Error(errorMsg);
         }
 
         // Log dos dados recuperados
@@ -1103,7 +1116,7 @@ router.post('/pdftasks/single', async (req, res) => {
                 stack: error.stack
             },
             details: {
-                identificador: id ? `ID: ${id}` : numero_documento ? `Número do documento: ${numero_documento}` : 'Não fornecido',
+                identificador: id ? `ID: ${id}` : numero_tratativa ? `Número da tratativa: ${numero_tratativa}` : 'Não fornecido',
                 processingTimeMs: processingTime,
                 tempFilesCount: tempFiles.length,
                 status: 'error'
