@@ -810,6 +810,17 @@ router.post('/pdftasks', async (req, res) => {
 router.post('/pdftasks/single', async (req, res) => {
     const { id, numero_tratativa } = req.body;
     
+    // Log mais detalhado para diagnóstico
+    logger.info('Requisição para geração de PDF de folha única recebida com parâmetros', {
+        operation: 'PDF Single Page Request',
+        parameters: {
+            id: id,
+            numero_tratativa: numero_tratativa,
+            tipo_numero_tratativa: typeof numero_tratativa,
+            body_completo: req.body
+        }
+    });
+    
     // Verificar se pelo menos um identificador foi fornecido
     if (!id && !numero_tratativa) {
         return res.status(400).json({
@@ -1067,7 +1078,7 @@ router.post('/pdftasks/single', async (req, res) => {
         const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
 
         // Atualizar URL do documento na tratativa
-        await supabaseService.updateDocumentUrl(id, publicUrl);
+        await supabaseService.updateDocumentUrl(tratativa.id, publicUrl);
 
         // Log do processo completo (Folha Única)
         const processingTime = Date.now() - startTime;
@@ -1100,7 +1111,7 @@ router.post('/pdftasks/single', async (req, res) => {
         const response = {
             status: 'success',
             message: 'Documento PDF (Folha Única) gerado com sucesso',
-            id,
+            id: tratativa.id,
             url: publicUrl,
             folhaUnica: true,
             processingTime: `${(processingTime / 1000).toFixed(2)}s`

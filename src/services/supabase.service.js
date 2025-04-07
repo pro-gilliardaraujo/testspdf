@@ -278,10 +278,22 @@ class SupabaseService {
                 details: { numeroTratativa }
             });
 
+            // Verificar se o número da tratativa é válido
+            if (!numeroTratativa) {
+                logger.error('Número da tratativa indefinido ou vazio', {
+                    operation: 'Get Tratativa By Number',
+                    details: { numeroTratativa }
+                });
+                return { data: null, error: new Error('Número da tratativa indefinido ou vazio') };
+            }
+
+            // Converter para string para garantir consistência na comparação
+            const numeroTratativaStr = String(numeroTratativa);
+
             const { data, error } = await supabase
                 .from('tratativas')
                 .select('*')
-                .eq('numero_tratativa', numeroTratativa)
+                .eq('numero_tratativa', numeroTratativaStr)
                 .single();
 
             if (error) throw error;
