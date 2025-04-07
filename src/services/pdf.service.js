@@ -15,13 +15,13 @@ class PDFService {
             // Verificar e criar diretório temp se necessário
             const tempDir = path.join(process.cwd(), 'temp');
             try {
-                await fs.promises.access(tempDir);
+                await fs.access(tempDir);
             } catch (err) {
                 logger.info('Criando diretório temporário para download', {
                     operation: 'Download PDF',
                     tempDir
                 });
-                await fs.promises.mkdir(tempDir, { recursive: true });
+                await fs.mkdir(tempDir, { recursive: true });
             }
             
             // Aplicar o caminho completo para o arquivo
@@ -41,7 +41,7 @@ class PDFService {
                 }
             });
             
-            await fs.promises.writeFile(filePath, response.data);
+            await fs.writeFile(filePath, response.data);
             
             logger.info('Arquivo PDF salvo com sucesso', {
                 operation: 'Download PDF',
@@ -74,6 +74,23 @@ class PDFService {
                 details: { files, outputFilename }
             });
 
+            // Verificar e criar diretório temp se necessário
+            const tempDir = path.join(process.cwd(), 'temp');
+            try {
+                await fs.access(tempDir);
+            } catch (err) {
+                logger.info('Criando diretório temporário para merge', {
+                    operation: 'Merge PDFs',
+                    tempDir
+                });
+                await fs.mkdir(tempDir, { recursive: true });
+            }
+
+            // Garantir caminho completo para o arquivo de saída
+            const outputPath = outputFilename.includes(path.sep) 
+                ? outputFilename 
+                : path.join(tempDir, outputFilename);
+
             // Criar novo documento PDF
             const mergedPdf = await PDFDocument.create();
 
@@ -99,18 +116,26 @@ class PDFService {
             
             // Salvar o documento final
             const mergedPdfBytes = await mergedPdf.save();
-            await fs.writeFile(outputFilename, mergedPdfBytes);
+            await fs.writeFile(outputPath, mergedPdfBytes);
             
             logger.info('Merge de PDFs concluído', {
                 operation: 'Merge PDFs',
-                outputFilename
+                outputPath,
+                exists: await this._fileExists(outputPath)
             });
 
-            return outputFilename;
+            return outputPath;
         } catch (error) {
-            logger.logError('Erro no merge de PDFs', error, {
-                files,
-                outputFilename
+            logger.error('Erro no merge de PDFs', {
+                operation: 'Merge PDFs',
+                error: {
+                    message: error.message,
+                    stack: error.stack
+                },
+                details: { 
+                    files,
+                    outputFilename
+                }
             });
             throw error;
         }
@@ -123,30 +148,59 @@ class PDFService {
                 files
             });
 
+            const sucessos = [];
+            const falhas = [];
+
             for (const file of files) {
-                await fs.unlink(file);
-                logger.info('Arquivo deletado', {
-                    operation: 'Cleanup Files',
-                    file
-                });
+                try {
+                    if (await this._fileExists(file)) {
+                        await fs.unlink(file);
+                        logger.info('Arquivo deletado', {
+                            operation: 'Cleanup Files',
+                            file
+                        });
+                        sucessos.push(file);
+                    } else {
+                        logger.warn('Arquivo não encontrado para deleção', {
+                            operation: 'Cleanup Files',
+                            file
+                        });
+                        falhas.push({ file, reason: 'not_found' });
+                    }
+                } catch (fileError) {
+                    logger.error('Erro ao deletar arquivo', {
+                        operation: 'Cleanup Files',
+                        file,
+                        error: fileError.message
+                    });
+                    falhas.push({ file, reason: 'error', message: fileError.message });
+                }
             }
 
             logger.info('Limpeza de arquivos concluída', {
                 operation: 'Cleanup Files',
-                filesRemoved: files.length
+                sucessos,
+                falhas,
+                totalSuccess: sucessos.length,
+                totalFailed: falhas.length
             });
         } catch (error) {
-            logger.logError('Erro na limpeza de arquivos', error, {
+            logger.error('Erro na limpeza de arquivos', {
+                operation: 'Cleanup Files',
+                error: {
+                    message: error.message,
+                    stack: error.stack
+                },
                 files
             });
-            throw error;
+            // Não relançamos o erro para não interromper o fluxo principal
         }
     }
 
     // Método auxiliar para verificar existência de arquivo
     async _fileExists(filePath) {
         try {
-            await fs.promises.access(filePath);
+            await fs.access(filePath);
             return true;
         } catch (err) {
             return false;
