@@ -270,6 +270,44 @@ class SupabaseService {
             throw error;
         }
     }
+
+    async getTratativaByNumeroDocumento(numeroDocumento) {
+        try {
+            logger.info('Buscando tratativa por número do documento', {
+                operation: 'Get Tratativa By Number',
+                details: { numeroDocumento }
+            });
+
+            const { data, error } = await supabase
+                .from('tratativas')
+                .select('*')
+                .eq('numero_tratativa', numeroDocumento)
+                .single();
+
+            if (error) throw error;
+
+            logger.info('Tratativa recuperada por número do documento', {
+                operation: 'Get Tratativa By Number',
+                details: {
+                    numeroDocumento,
+                    found: !!data,
+                    tratativaId: data?.id
+                }
+            });
+
+            return { data, error: null };
+        } catch (error) {
+            logger.error('Erro ao buscar tratativa por número do documento', {
+                operation: 'Get Tratativa By Number',
+                error: {
+                    message: error.message,
+                    stack: error.stack
+                },
+                details: { numeroDocumento }
+            });
+            return { data: null, error };
+        }
+    }
 }
 
 module.exports = new SupabaseService(); 

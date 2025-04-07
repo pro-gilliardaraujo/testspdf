@@ -207,16 +207,17 @@ router.post('/pdftasks', async (req, res) => {
     const startTime = Date.now();
     
     try {
-        const { id, folhaUnica } = req.body;
+        const { id, numero_documento, folhaUnica } = req.body;
 
-        if (!id) {
-            throw new Error('ID da tratativa não fornecido');
+        // Verificar se pelo menos um identificador foi fornecido
+        if (!id && !numero_documento) {
+            throw new Error('É necessário fornecer ID ou número do documento');
         }
 
-        // Log informando se é uma geração de folha única ou documento completo
+        // Log informando o tipo de identificador e se é geração de folha única
         logger.info('Iniciando processamento de PDF', {
             operation: 'PDF Task',
-            tratativa_id: id,
+            identificador: id ? `ID: ${id}` : `Número do documento: ${numero_documento}`,
             tipo: folhaUnica ? 'Folha Única' : 'Documento Completo',
             request_body: {
                 ...req.body,
@@ -231,21 +232,35 @@ router.post('/pdftasks', async (req, res) => {
         // Garantir que o diretório temp existe
         await ensureDirectoryExists(tempDir);
 
-        // Buscar dados da tratativa
-        const { data: tratativa, error: fetchError } = await supabaseService.getTratativaById(id);
+        // Buscar dados da tratativa (por ID ou por número de documento)
+        let tratativaResult;
+        if (id) {
+            tratativaResult = await supabaseService.getTratativaById(id);
+        } else {
+            tratativaResult = await supabaseService.getTratativaByNumeroDocumento(numero_documento);
+        }
+
+        const { data: tratativa, error: fetchError } = tratativaResult;
 
         if (fetchError) {
-            throw new Error(`Erro ao buscar tratativa: ${fetchError.message}`);
+            const errorMsg = id 
+                ? `Erro ao buscar tratativa pelo ID: ${fetchError.message}` 
+                : `Erro ao buscar tratativa pelo número do documento: ${fetchError.message}`;
+            throw new Error(errorMsg);
         }
 
         if (!tratativa) {
-            throw new Error('Tratativa não encontrada');
+            const errorMsg = id 
+                ? `Tratativa com ID ${id} não encontrada` 
+                : `Tratativa com número ${numero_documento} não encontrada`;
+            throw new Error(errorMsg);
         }
 
         // Log dos dados recuperados
         logger.info('Dados da tratativa recuperados', {
             operation: 'PDF Task',
-            tratativa_id: id,
+            tratativa_id: tratativa.id,
+            numero_tratativa: tratativa.numero_tratativa,
             dados_tratativa: {
                 ...tratativa,
                 cpf: 'REDACTED',
@@ -260,7 +275,7 @@ router.post('/pdftasks', async (req, res) => {
         if (!grauPenalidade) {
             logger.error('Campo grau_penalidade ausente', {
                 operation: 'PDF Task - Validação',
-                tratativa_id: id,
+                tratativa_id: tratativa.id,
                 dados_tratativa: {
                     ...tratativa,
                     cpf: 'REDACTED'
@@ -272,7 +287,7 @@ router.post('/pdftasks', async (req, res) => {
         if (!descricaoPenalidade) {
             logger.error('Campo descrição da penalidade ausente', {
                 operation: 'PDF Task - Validação',
-                tratativa_id: id,
+                tratativa_id: tratativa.id,
                 dados_tratativa: {
                     ...tratativa,
                     cpf: 'REDACTED'
@@ -437,7 +452,7 @@ router.post('/pdftasks', async (req, res) => {
                 operation: 'PDF Task',
                 details: {
                     folhaUnica: true,
-                    tratativa_id: id
+                    tratativa_id: tratativa.id
                 }
             });
 
@@ -487,7 +502,7 @@ router.post('/pdftasks', async (req, res) => {
                 details: {
                     filename: singlePageFilename,
                     fileSize: fileContent.length,
-                    tratativa_id: id,
+                    tratativa_id: tratativa.id,
                     numero_tratativa: tratativa.numero_tratativa
                 }
             });
@@ -496,14 +511,14 @@ router.post('/pdftasks', async (req, res) => {
             const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
 
             // Atualizar URL do documento na tratativa
-            await supabaseService.updateDocumentUrl(id, publicUrl);
+            await supabaseService.updateDocumentUrl(tratativa.id, publicUrl);
 
             // Log do processo completo (Folha Única)
             const processingTime = Date.now() - startTime;
             logger.info('Processo de geração e upload concluído (Folha Única)', {
                 operation: 'PDF Task Complete Single Page',
                 details: {
-                    tratativa_id: id,
+                    tratativa_id: tratativa.id,
                     numero_tratativa: tratativa.numero_tratativa,
                     processingTimeMs: processingTime,
                     documentPath: supabasePath,
@@ -529,7 +544,7 @@ router.post('/pdftasks', async (req, res) => {
             const response = {
                 status: 'success',
                 message: 'Documento PDF (Folha Única) gerado com sucesso',
-                id,
+                id: tratativa.id,
                 url: publicUrl,
                 folhaUnica: true,
                 processingTime: `${(processingTime / 1000).toFixed(2)}s`
@@ -550,7 +565,7 @@ router.post('/pdftasks', async (req, res) => {
         // Log para debug do campo advertido
         logger.info('Valores dos campos de penalidade', {
             operation: 'PDF Task - Debug Penalidade',
-            tratativa_id: id,
+            tratativa_id: tratativa.id,
             dados: {
                 penalidade: tratativa.penalidade,
                 advertido: tratativa.advertido,
@@ -717,7 +732,7 @@ router.post('/pdftasks', async (req, res) => {
             details: {
                 filename: mergedFilename,
                 fileSize: fileContent.length,
-                tratativa_id: id,
+                tratativa_id: tratativa.id,
                 numero_tratativa: tratativa.numero_tratativa
             }
         });
@@ -726,14 +741,14 @@ router.post('/pdftasks', async (req, res) => {
         const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
 
         // Atualizar URL do documento na tratativa
-        await supabaseService.updateDocumentUrl(id, publicUrl);
+        await supabaseService.updateDocumentUrl(tratativa.id, publicUrl);
 
         // Log do processo completo
         const processingTime = Date.now() - startTime;
         logger.info('Processo de geração e upload concluído', {
             operation: 'PDF Task Complete',
             details: {
-                tratativa_id: id,
+                tratativa_id: tratativa.id,
                 numero_tratativa: tratativa.numero_tratativa,
                 processingTimeMs: processingTime,
                 documentPath: supabasePath,
@@ -748,7 +763,7 @@ router.post('/pdftasks', async (req, res) => {
         const response = {
             status: 'success',
             message: 'Documento PDF gerado com sucesso',
-            id,
+            id: tratativa.id,
             url: publicUrl,
             processingTime: `${(processingTime / 1000).toFixed(2)}s`
         };
@@ -764,7 +779,7 @@ router.post('/pdftasks', async (req, res) => {
                 stack: error.stack
             },
             details: {
-                tratativa_id: req.body.id,
+                identificador: id ? `ID: ${id}` : numero_documento ? `Número do documento: ${numero_documento}` : 'Não fornecido',
                 processingTimeMs: processingTime,
                 tempFilesCount: tempFiles.length,
                 status: 'error'
@@ -793,18 +808,19 @@ router.post('/pdftasks', async (req, res) => {
 
 // Rota específica para processar geração de PDF de folha única
 router.post('/pdftasks/single', async (req, res) => {
-    const { id } = req.body;
+    const { id, numero_documento } = req.body;
     
-    if (!id) {
+    // Verificar se pelo menos um identificador foi fornecido
+    if (!id && !numero_documento) {
         return res.status(400).json({
             status: 'error',
-            message: 'ID da tratativa não fornecido'
+            message: 'É necessário fornecer ID ou número do documento'
         });
     }
     
     logger.info('Requisição para geração de PDF de folha única recebida', {
         operation: 'PDF Single Page Request',
-        tratativa_id: id
+        identificador: id ? `ID: ${id}` : `Número do documento: ${numero_documento}`
     });
     
     // Adicionar o parâmetro folhaUnica e repassar para a rota principal
@@ -817,8 +833,9 @@ router.post('/pdftasks/single', async (req, res) => {
     const startTime = Date.now();
     
     try {
-        // O resto do código é idêntico à rota /pdftasks
-        // já que adicionamos o parâmetro folhaUnica = true
+        // O resto do código pode continuar igual ao da rota /pdftasks
+        // já que adicionamos o parâmetro folhaUnica = true e modificamos
+        // para aceitar tanto ID quanto número de documento
         
         logger.info('Iniciando processamento de PDF (Folha Única)', {
             operation: 'PDF Task',
@@ -1086,7 +1103,7 @@ router.post('/pdftasks/single', async (req, res) => {
                 stack: error.stack
             },
             details: {
-                tratativa_id: id,
+                identificador: id ? `ID: ${id}` : numero_documento ? `Número do documento: ${numero_documento}` : 'Não fornecido',
                 processingTimeMs: processingTime,
                 tempFilesCount: tempFiles.length,
                 status: 'error'
