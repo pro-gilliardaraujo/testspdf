@@ -137,15 +137,17 @@ router.post('/pdftasks', async (req, res) => {
     const startTime = Date.now();
     
     try {
-        const { id } = req.body;
+        const { id, folhaUnica } = req.body;
 
         if (!id) {
             throw new Error('ID da tratativa não fornecido');
         }
 
+        // Log informando se é uma geração de folha única ou documento completo
         logger.info('Iniciando processamento de PDF', {
             operation: 'PDF Task',
             tratativa_id: id,
+            tipo: folhaUnica ? 'Folha Única' : 'Documento Completo',
             request_body: {
                 ...req.body,
                 cpf: 'REDACTED' // Proteger dados sensíveis
@@ -359,6 +361,90 @@ router.post('/pdftasks', async (req, res) => {
             throw new Error('Falha ao gerar Folha 1: URL do documento não retornada');
         }
 
+        // Se folhaUnica for true, pular a geração da folha 2 e o merge
+        if (folhaUnica) {
+            logger.info('Modo Folha Única ativado, pulando geração da Folha 2', {
+                operation: 'PDF Task',
+                details: {
+                    folhaUnica: true,
+                    tratativa_id: id
+                }
+            });
+
+            // Download do PDF
+            const filename1 = formatarNomeDocumento(tratativa, 'folha1');
+            
+            logger.info('Iniciando processamento final do documento (Folha Única)', {
+                operation: 'PDF Task Single Page'
+            });
+
+            const file1 = await pdfService.downloadPDF(responseFolha1.data.documentUrl, filename1);
+            tempFiles.push(file1);
+
+            // Upload para o Supabase (usando a Folha 1 diretamente)
+            const fileContent = await readFile(file1);
+            
+            // Usar nome de arquivo que indique que é apenas a primeira folha
+            const singlePageFilename = formatarNomeDocumento(tratativa, 'folha1');
+            
+            // Log do início do upload
+            logger.info('Iniciando upload do documento (Folha Única)', {
+                operation: 'PDF Upload Single Page',
+                details: {
+                    filename: singlePageFilename,
+                    fileSize: fileContent.length,
+                    tratativa_id: id,
+                    numero_tratativa: tratativa.numero_tratativa
+                }
+            });
+
+            const supabasePath = `tratativas/enviadas/${tratativa.numero_tratativa}/${singlePageFilename}`;
+            const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
+
+            // Atualizar URL do documento na tratativa
+            await supabaseService.updateDocumentUrl(id, publicUrl);
+
+            // Log do processo completo (Folha Única)
+            const processingTime = Date.now() - startTime;
+            logger.info('Processo de geração e upload concluído (Folha Única)', {
+                operation: 'PDF Task Complete Single Page',
+                details: {
+                    tratativa_id: id,
+                    numero_tratativa: tratativa.numero_tratativa,
+                    processingTimeMs: processingTime,
+                    documentPath: supabasePath,
+                    publicUrl: publicUrl,
+                    fileSize: fileContent.length,
+                    tempFilesCreated: tempFiles.length,
+                    folhaUnica: true,
+                    status: 'success'
+                }
+            });
+
+            // Limpar arquivos temporários
+            try {
+                await pdfService.cleanupFiles(tempFiles);
+            } catch (cleanupError) {
+                logger.error('Erro ao limpar arquivos temporários', {
+                    operation: 'PDF Task - Cleanup Single Page',
+                    error: cleanupError.message
+                });
+            }
+
+            // Resposta de sucesso para Folha Única
+            const response = {
+                status: 'success',
+                message: 'Documento PDF (Folha Única) gerado com sucesso',
+                id,
+                url: publicUrl,
+                folhaUnica: true,
+                processingTime: `${(processingTime / 1000).toFixed(2)}s`
+            };
+
+            return res.json(response);
+        }
+
+        // Continue com a geração da folha 2 apenas se folhaUnica não for true
         // Preparar dados para Folha 2
         const templateDataFolha2 = {
             ...templateDataFolha1,
@@ -606,6 +692,305 @@ router.post('/pdftasks', async (req, res) => {
         res.status(500).json({
             status: 'error',
             message: 'Erro ao processar PDF',
+            error: error.message
+        });
+    }
+});
+
+// Rota específica para processar geração de PDF de folha única
+router.post('/pdftasks/single', async (req, res) => {
+    const { id } = req.body;
+    
+    if (!id) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'ID da tratativa não fornecido'
+        });
+    }
+    
+    logger.info('Requisição para geração de PDF de folha única recebida', {
+        operation: 'PDF Single Page Request',
+        tratativa_id: id
+    });
+    
+    // Adicionar o parâmetro folhaUnica e repassar para a rota principal
+    req.body.folhaUnica = true;
+    
+    // Em vez de tentar redirecionar internamente,
+    // vamos executar a mesma lógica da rota pdftasks
+    // Array to track temporary files for cleanup
+    const tempFiles = [];
+    const startTime = Date.now();
+    
+    try {
+        // O resto do código é idêntico à rota /pdftasks
+        // já que adicionamos o parâmetro folhaUnica = true
+        
+        logger.info('Iniciando processamento de PDF (Folha Única)', {
+            operation: 'PDF Task',
+            tratativa_id: id,
+            tipo: 'Folha Única',
+            request_body: {
+                ...req.body,
+                cpf: 'REDACTED' // Proteger dados sensíveis
+            },
+            timestamp: new Date().toISOString()
+        });
+
+        // Definir diretório temporário no início do processamento
+        const tempDir = path.join(process.cwd(), 'temp');
+        
+        // Garantir que o diretório temp existe
+        await ensureDirectoryExists(tempDir);
+
+        // Buscar dados da tratativa
+        const { data: tratativa, error: fetchError } = await supabaseService.getTratativaById(id);
+
+        if (fetchError) {
+            throw new Error(`Erro ao buscar tratativa: ${fetchError.message}`);
+        }
+
+        if (!tratativa) {
+            throw new Error('Tratativa não encontrada');
+        }
+
+        // Log dos dados recuperados
+        logger.info('Dados da tratativa recuperados (Folha Única)', {
+            operation: 'PDF Task Single',
+            tratativa_id: id,
+            dados_tratativa: {
+                ...tratativa,
+                cpf: 'REDACTED',
+                grau_penalidade: extrairGrauPenalidade(tratativa.penalidade) || 'NÃO DEFINIDO'
+            }
+        });
+
+        // Validar se o grau_penalidade existe
+        const grauPenalidade = extrairGrauPenalidade(tratativa.penalidade);
+        const descricaoPenalidade = extrairDescricaoPenalidade(tratativa.penalidade);
+
+        if (!grauPenalidade) {
+            throw new Error('Campo grau_penalidade é obrigatório para gerar o PDF');
+        }
+
+        if (!descricaoPenalidade) {
+            throw new Error('Campo descrição da penalidade é obrigatório para gerar o PDF');
+        }
+
+        // Preparar dados para Folha 1
+        const templateDataFolha1 = {
+            DOP_NUMERO_DOCUMENTO: tratativa.numero_tratativa,
+            DOP_NOME: tratativa.funcionario,
+            DOP_FUNCAO: tratativa.funcao,
+            DOP_SETOR: tratativa.setor,
+            DOP_DESCRICAO: tratativa.descricao_infracao,
+            DOP_DATA: formatarDataBrasileira(tratativa.data_infracao),
+            DOP_HORA: tratativa.hora_infracao,
+            DOP_CODIGO: tratativa.codigo_infracao,
+            DOP_GRAU: grauPenalidade,
+            DOP_PENALIDADE: descricaoPenalidade,
+            DOP_IMAGEM: tratativa.imagem_evidencia1,
+            DOP_LIDER: tratativa.lider,
+            DOP_CPF: tratativa.cpf,
+            DOP_DATA_EXTENSA: formatarDataExtensa(tratativa.data_infracao)
+        };
+
+        // Validar campos obrigatórios Folha 1
+        const camposObrigatoriosFolha1 = [
+            'DOP_NUMERO_DOCUMENTO',
+            'DOP_NOME',
+            'DOP_FUNCAO',
+            'DOP_SETOR',
+            'DOP_DESCRICAO',
+            'DOP_DATA',
+            'DOP_HORA',
+            'DOP_CODIGO',
+            'DOP_GRAU',
+            'DOP_PENALIDADE',
+            'DOP_IMAGEM',
+            'DOP_LIDER',
+            'DOP_CPF',
+            'DOP_DATA_EXTENSA'
+        ];
+
+        const camposVaziosFolha1 = camposObrigatoriosFolha1.filter(
+            campo => !templateDataFolha1[campo]
+        );
+
+        if (camposVaziosFolha1.length > 0) {
+            throw new Error(`Campos obrigatórios ausentes na Folha 1: ${camposVaziosFolha1.join(', ')}`);
+        }
+
+        // Log dos dados mapeados Folha 1
+        logger.info('Iniciando geração da Folha 1 (Modo Folha Única)', {
+            operation: 'PDF Task Single',
+            folha: 1
+        });
+
+        let responseFolha1;
+        try {
+            const doppioResponse = await axios({
+                method: 'POST',
+                url: 'https://api.doppio.sh/v1/template/direct',
+                headers: {
+                    'Authorization': `Bearer ${process.env.DOPPIO_API_KEY_FOLHA1}`,
+                    'Content-Type': 'application/json'
+                },
+                data: {
+                    templateId: process.env.DOPPIO_TEMPLATE_ID_FOLHA1,
+                    templateData: templateDataFolha1
+                },
+                responseType: 'arraybuffer'
+            });
+
+            if (!doppioResponse.data) {
+                throw new Error('Resposta da API sem dados');
+            }
+
+            // Salvar o PDF recebido
+            const filename1 = formatarNomeDocumento(tratativa, 'folha1');
+            const tempPath1 = path.join(tempDir, filename1);
+            tempFiles.push(tempPath1); // Track temporary file
+            
+            // Salvar o PDF
+            await writeFile(tempPath1, doppioResponse.data);
+
+            // Criar URL completo para o arquivo
+            const serverUrl = `https://${req.get('host')}`;
+            const localUrl = `${serverUrl}/temp/${filename1}`;
+            
+            responseFolha1 = {
+                data: {
+                    documentUrl: localUrl
+                }
+            };
+
+            logger.info('Folha 1 gerada com sucesso (Modo Folha Única)', {
+                operation: 'PDF Task Single',
+                folha: 1
+            });
+        } catch (error) {
+            let errorMessage;
+            if (error.response) {
+                if (error.response.data instanceof Buffer) {
+                    errorMessage = error.response.data.toString();
+                } else {
+                    errorMessage = error.response.data?.message || error.response.statusText;
+                }
+            } else if (error.request) {
+                errorMessage = 'Sem resposta do servidor Doppio';
+            } else {
+                errorMessage = error.message || 'Erro desconhecido ao gerar PDF';
+            }
+            throw new Error(`Falha ao gerar Folha 1: ${errorMessage}`);
+        }
+
+        if (!responseFolha1.data || !responseFolha1.data.documentUrl) {
+            throw new Error('Falha ao gerar Folha 1: URL do documento não retornada');
+        }
+
+        // Download do PDF
+        const filename1 = formatarNomeDocumento(tratativa, 'folha1');
+        
+        logger.info('Iniciando processamento final do documento (Folha Única)', {
+            operation: 'PDF Task Single Page'
+        });
+
+        const file1 = await pdfService.downloadPDF(responseFolha1.data.documentUrl, filename1);
+        tempFiles.push(file1);
+
+        // Upload para o Supabase (usando a Folha 1 diretamente)
+        const fileContent = await readFile(file1);
+        
+        // Usar nome de arquivo que indique que é apenas a primeira folha
+        const singlePageFilename = formatarNomeDocumento(tratativa, 'folha1');
+        
+        // Log do início do upload
+        logger.info('Iniciando upload do documento (Folha Única)', {
+            operation: 'PDF Upload Single Page',
+            details: {
+                filename: singlePageFilename,
+                fileSize: fileContent.length,
+                tratativa_id: id,
+                numero_tratativa: tratativa.numero_tratativa
+            }
+        });
+
+        const supabasePath = `tratativas/enviadas/${tratativa.numero_tratativa}/${singlePageFilename}`;
+        const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
+
+        // Atualizar URL do documento na tratativa
+        await supabaseService.updateDocumentUrl(id, publicUrl);
+
+        // Log do processo completo (Folha Única)
+        const processingTime = Date.now() - startTime;
+        logger.info('Processo de geração e upload concluído (Folha Única)', {
+            operation: 'PDF Task Complete Single Page',
+            details: {
+                tratativa_id: id,
+                numero_tratativa: tratativa.numero_tratativa,
+                processingTimeMs: processingTime,
+                documentPath: supabasePath,
+                publicUrl: publicUrl,
+                fileSize: fileContent.length,
+                tempFilesCreated: tempFiles.length,
+                folhaUnica: true,
+                status: 'success'
+            }
+        });
+
+        // Limpar arquivos temporários
+        try {
+            await pdfService.cleanupFiles(tempFiles);
+        } catch (cleanupError) {
+            logger.error('Erro ao limpar arquivos temporários', {
+                operation: 'PDF Task - Cleanup Single Page',
+                error: cleanupError.message
+            });
+        }
+
+        // Resposta de sucesso para Folha Única
+        const response = {
+            status: 'success',
+            message: 'Documento PDF (Folha Única) gerado com sucesso',
+            id,
+            url: publicUrl,
+            folhaUnica: true,
+            processingTime: `${(processingTime / 1000).toFixed(2)}s`
+        };
+
+        return res.json(response);
+    } catch (error) {
+        const processingTime = Date.now() - startTime;
+        logger.error('Erro no processamento do documento (Folha Única)', {
+            operation: 'PDF Task Error Single',
+            error: {
+                message: error.message,
+                stack: error.stack
+            },
+            details: {
+                tratativa_id: id,
+                processingTimeMs: processingTime,
+                tempFilesCount: tempFiles.length,
+                status: 'error'
+            }
+        });
+
+        // Tentar limpar arquivos temporários mesmo em caso de erro
+        try {
+            if (tempFiles.length > 0) {
+                await pdfService.cleanupFiles(tempFiles);
+            }
+        } catch (cleanupError) {
+            logger.error('Erro ao limpar arquivos temporários após falha (Folha Única)', {
+                operation: 'PDF Task - Error Cleanup Single',
+                error: cleanupError.message
+            });
+        }
+
+        return res.status(500).json({
+            status: 'error',
+            message: 'Erro ao processar PDF (Folha Única)',
             error: error.message
         });
     }
