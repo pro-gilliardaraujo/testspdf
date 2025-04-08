@@ -1205,4 +1205,170 @@ router.post('/pdftasks/single', async (req, res) => {
     }
 });
 
+// Rota para regenerar PDF de uma tratativa
+router.post('/regenerate-pdf', async (req, res) => {
+    const { id, numero_tratativa, folhaUnica } = req.body;
+    
+    // Log detalhado da requisição recebida
+    logger.info('Requisição para regeneração de PDF recebida', {
+        operation: 'PDF Task - Regeneration',
+        parameters: {
+            id,
+            numero_tratativa,
+            folhaUnica,
+            body_completo: req.body
+        }
+    });
+    
+    // Verificar se pelo menos um identificador foi fornecido
+    if (!id && !numero_tratativa) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'É necessário fornecer ID ou número da tratativa'
+        });
+    }
+    
+    try {
+        // Verificar se a tratativa existe e se realmente precisa do documento
+        let tratativaResult;
+        
+        if (id) {
+            tratativaResult = await supabaseService.getTratativaById(id);
+        } else {
+            tratativaResult = await supabaseService.getTratativaByNumeroTratativa(numero_tratativa);
+        }
+        
+        const { data: tratativa, error: fetchError } = tratativaResult;
+        
+        if (fetchError) {
+            const errorMsg = id 
+                ? `Erro ao buscar tratativa pelo ID: ${fetchError.message}` 
+                : `Erro ao buscar tratativa pelo número: ${fetchError.message}`;
+            throw new Error(errorMsg);
+        }
+
+        if (!tratativa) {
+            const errorMsg = id 
+                ? `Tratativa com ID ${id} não encontrada` 
+                : `Tratativa com número ${numero_tratativa} não encontrada`;
+            throw new Error(errorMsg);
+        }
+
+        // Se a URL do documento já existe, verificar se o cliente realmente quer regenerar
+        const forceRegenerate = req.body.force === true;
+        
+        if (tratativa.url_documento_enviado && !forceRegenerate) {
+            logger.info('Tratativa já possui URL do documento', {
+                operation: 'PDF Task - Regeneration',
+                details: {
+                    id: tratativa.id,
+                    numero_tratativa: tratativa.numero_tratativa,
+                    url_existente: tratativa.url_documento_enviado
+                }
+            });
+            
+            return res.json({
+                status: 'info',
+                message: 'Esta tratativa já possui um documento gerado. Use force=true para regenerar.',
+                id: tratativa.id,
+                url: tratativa.url_documento_enviado
+            });
+        }
+        
+        // Repassar a solicitação para a rota apropriada adicionando o ID no body
+        // Redirecionando para a rota adequada com base no parâmetro folhaUnica
+        const routePath = folhaUnica ? '/pdftasks/single' : '/pdftasks';
+        
+        // Prepara o objeto de requisição
+        req.body = {
+            id: tratativa.id,  // Sempre usar o ID interno da tratativa
+            folhaUnica: !!folhaUnica
+        };
+        
+        logger.info('Redirecionando para rota de geração de PDF', {
+            operation: 'PDF Task - Regeneration',
+            details: {
+                route: routePath,
+                id: tratativa.id,
+                folhaUnica: !!folhaUnica
+            }
+        });
+        
+        // Chamar a rota correspondente com os parâmetros atualizados
+        if (folhaUnica) {
+            return router.handle(req, res, () => {
+                req.url = '/pdftasks/single';
+                router.handle(req, res);
+            });
+        } else {
+            return router.handle(req, res, () => {
+                req.url = '/pdftasks';
+                router.handle(req, res);
+            });
+        }
+    } catch (error) {
+        logger.error('Erro na regeneração do PDF', {
+            operation: 'PDF Task - Regeneration Error',
+            error: {
+                message: error.message,
+                stack: error.stack
+            },
+            details: {
+                id,
+                numero_tratativa
+            }
+        });
+        
+        return res.status(500).json({
+            status: 'error',
+            message: 'Erro ao regenerar PDF',
+            error: error.message
+        });
+    }
+});
+
+// Rota para listar tratativas sem documento gerado
+router.get('/list-without-pdf', async (req, res) => {
+    try {
+        logger.info('Requisição para listagem de tratativas sem documento', {
+            operation: 'List Tratativas Without PDF',
+            request: {
+                method: req.method,
+                path: req.path
+            }
+        });
+        
+        const tratativas = await supabaseService.listTrataticasSemDocumento();
+        
+        logger.info('Listagem de tratativas sem documento concluída', {
+            operation: 'List Tratativas Without PDF',
+            details: {
+                count: tratativas.length
+            }
+        });
+        
+        const response = { 
+            status: 'success', 
+            data: tratativas,
+            count: tratativas.length
+        };
+        
+        res.json(response);
+    } catch (error) {
+        logger.error('Erro na listagem de tratativas sem documento', {
+            operation: 'List Tratativas Without PDF',
+            error: {
+                message: error.message,
+                stack: error.stack
+            }
+        });
+        
+        res.status(500).json({ 
+            status: 'error', 
+            message: 'Erro ao listar tratativas sem documento',
+            error: error.message
+        });
+    }
+});
+
 module.exports = router; 

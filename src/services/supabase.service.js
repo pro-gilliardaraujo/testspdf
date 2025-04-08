@@ -345,6 +345,44 @@ class SupabaseService {
             return { data: null, error };
         }
     }
+
+    async listTrataticasSemDocumento() {
+        try {
+            logger.info('Buscando lista de tratativas sem documento', {
+                operation: 'List Tratativas Without Document',
+                source: 'Supabase'
+            });
+
+            // Buscar tratativas onde url_documento_enviado é nulo ou vazio
+            const { data, error } = await supabase
+                .from('tratativas')
+                .select('*')
+                .or('url_documento_enviado.is.null,url_documento_enviado.eq.')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            
+            logger.info('Lista de tratativas sem documento recuperada', {
+                operation: 'List Tratativas Without Document',
+                details: {
+                    count: data.length,
+                    firstItem: data[0]?.id,
+                    lastItem: data[data.length - 1]?.id
+                }
+            });
+
+            return data;
+        } catch (error) {
+            logger.error('Erro ao listar tratativas sem documento', {
+                operation: 'List Tratativas Without Document',
+                error: {
+                    message: error.message,
+                    stack: error.stack
+                }
+            });
+            throw error;
+        }
+    }
 }
 
 module.exports = new SupabaseService(); 
