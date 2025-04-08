@@ -86,13 +86,18 @@ const formatarNomeDocumento = (tratativa, tipo) => {
     
     const numeroDoc = tratativa.numero_tratativa || '0000';
     
-    // Sanitização dos campos para remover caracteres problemáticos
+    // Sanitização mais rigorosa - remove todos os caracteres especiais e acentos
+    const removerAcentos = (str) => {
+        return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[\/\\:*?"<>|çÇáàãâéêíóôõúüÁÀÃÂÉÊÍÓÔÕÚÜ]/g, '_');
+    };
+    
     const funcionario = (tratativa.funcionario || 'SEM NOME')
         .toUpperCase()
         .replace(/[\/\\:*?"<>|]/g, '_'); // Remover caracteres especiais
     
-    const setor = (tratativa.setor || 'SEM SETOR')
-        .toUpperCase()
+    const setor = removerAcentos((tratativa.setor || 'SEM SETOR')
+        .toUpperCase())
         .replace(/[\/\\:*?"<>|]/g, '_'); // Remover caracteres especiais
     
     // Limitar o tamanho do nome para evitar caminhos muito longos
@@ -115,8 +120,8 @@ const formatarNomeDocumento = (tratativa, tipo) => {
             nomeArquivo = `DOCUMENTO_${dataFormatada}.pdf`;
     }
     
-    // Substituir espaços por underscores para evitar problemas
-    return nomeArquivo.replace(/\s+/g, '_');
+    // Substituir espaços por underscores e garantir que não há caracteres proibidos
+    return removerAcentos(nomeArquivo.replace(/\s+/g, '_'));
 };
 
 // Função auxiliar para extrair grau da penalidade do campo penalidade
@@ -538,50 +543,79 @@ router.post('/pdftasks', async (req, res) => {
                 }
             });
 
-            const supabasePath = `tratativas/enviadas/${tratativa.numero_tratativa}/${singlePageFilename}`;
-            const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
-
-            // Atualizar URL do documento na tratativa
-            await supabaseService.updateDocumentUrl(tratativa.id, publicUrl);
-
-            // Log do processo completo (Folha Única)
-            const processingTime = Date.now() - startTime;
-            logger.info('Processo de geração e upload concluído (Folha Única)', {
-                operation: 'PDF Task Complete Single Page',
-                details: {
-                    tratativa_id: tratativa.id,
-                    numero_tratativa: tratativa.numero_tratativa,
-                    processingTimeMs: processingTime,
-                    documentPath: supabasePath,
-                    publicUrl: publicUrl,
-                    fileSize: fileContent.length,
-                    tempFilesCreated: tempFiles.length,
-                    folhaUnica: true,
-                    status: 'success'
-                }
-            });
-
-            // Limpar arquivos temporários
             try {
-                await pdfService.cleanupFiles(tempFiles);
-            } catch (cleanupError) {
-                logger.error('Erro ao limpar arquivos temporários', {
-                    operation: 'PDF Task - Cleanup Single Page',
-                    error: cleanupError.message
+                const supabasePath = `tratativas/enviadas/${tratativa.numero_tratativa}/${singlePageFilename}`;
+                const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
+
+                // Atualizar URL do documento na tratativa
+                await supabaseService.updateDocumentUrl(tratativa.id, publicUrl);
+
+                // Log do processo completo (Folha Única)
+                const processingTime = Date.now() - startTime;
+                logger.info('Processo de geração e upload concluído (Folha Única)', {
+                    operation: 'PDF Task Complete Single Page',
+                    details: {
+                        tratativa_id: tratativa.id,
+                        numero_tratativa: tratativa.numero_tratativa,
+                        processingTimeMs: processingTime,
+                        documentPath: supabasePath,
+                        publicUrl: publicUrl,
+                        fileSize: fileContent.length,
+                        tempFilesCreated: tempFiles.length,
+                        folhaUnica: true,
+                        status: 'success'
+                    }
                 });
+
+                // Limpar arquivos temporários
+                try {
+                    await pdfService.cleanupFiles(tempFiles);
+                } catch (cleanupError) {
+                    logger.error('Erro ao limpar arquivos temporários', {
+                        operation: 'PDF Task - Cleanup Single Page',
+                        error: cleanupError.message
+                    });
+                }
+
+                // Resposta de sucesso para Folha Única
+                const response = {
+                    status: 'success',
+                    message: 'Documento PDF (Folha Única) gerado com sucesso',
+                    id: tratativa.id,
+                    url: publicUrl,
+                    folhaUnica: true,
+                    processingTime: `${(processingTime / 1000).toFixed(2)}s`
+                };
+
+                return res.json(response);
+            } catch (uploadError) {
+                logger.error('Erro no upload ou atualização da URL do documento (Folha Única)', {
+                    operation: 'PDF Upload Error Single Page',
+                    error: {
+                        message: uploadError.message,
+                        stack: uploadError.stack
+                    },
+                    details: {
+                        tratativa_id: tratativa.id,
+                        numero_tratativa: tratativa.numero_tratativa,
+                        filename: singlePageFilename
+                    }
+                });
+
+                // Tente limpar arquivos temporários mesmo após falha no upload
+                try {
+                    if (tempFiles.length > 0) {
+                        await pdfService.cleanupFiles(tempFiles);
+                    }
+                } catch (cleanupError) {
+                    logger.error('Erro ao limpar arquivos temporários após falha no upload (Folha Única)', {
+                        operation: 'PDF Task - Error Cleanup Single',
+                        error: cleanupError.message
+                    });
+                }
+
+                throw uploadError; // Repassar o erro para ser tratado pelo bloco catch externo
             }
-
-            // Resposta de sucesso para Folha Única
-            const response = {
-                status: 'success',
-                message: 'Documento PDF (Folha Única) gerado com sucesso',
-                id: tratativa.id,
-                url: publicUrl,
-                folhaUnica: true,
-                processingTime: `${(processingTime / 1000).toFixed(2)}s`
-            };
-
-            return res.json(response);
         }
 
         // Continue com a geração da folha 2 apenas se folhaUnica não for true
@@ -788,38 +822,67 @@ router.post('/pdftasks', async (req, res) => {
             }
         });
 
-        const supabasePath = `tratativas/enviadas/${tratativa.numero_tratativa}/${mergedFilename}`;
-        const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
+        try {
+            const supabasePath = `tratativas/enviadas/${tratativa.numero_tratativa}/${mergedFilename}`;
+            const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
 
-        // Atualizar URL do documento na tratativa
-        await supabaseService.updateDocumentUrl(tratativa.id, publicUrl);
+            // Atualizar URL do documento na tratativa
+            await supabaseService.updateDocumentUrl(tratativa.id, publicUrl);
 
-        // Log do processo completo
-        const processingTime = Date.now() - startTime;
-        logger.info('Processo de geração e upload concluído', {
-            operation: 'PDF Task Complete',
-            details: {
-                tratativa_id: tratativa.id,
-                numero_tratativa: tratativa.numero_tratativa,
-                processingTimeMs: processingTime,
-                documentPath: supabasePath,
-                publicUrl: publicUrl,
-                fileSize: fileContent.length,
-                tempFilesCreated: tempFiles.length,
-                status: 'success'
+            // Log do processo completo
+            const processingTime = Date.now() - startTime;
+            logger.info('Processo de geração e upload concluído', {
+                operation: 'PDF Task Complete',
+                details: {
+                    tratativa_id: tratativa.id,
+                    numero_tratativa: tratativa.numero_tratativa,
+                    processingTimeMs: processingTime,
+                    documentPath: supabasePath,
+                    publicUrl: publicUrl,
+                    fileSize: fileContent.length,
+                    tempFilesCreated: tempFiles.length,
+                    status: 'success'
+                }
+            });
+
+            // Resposta de sucesso
+            const response = {
+                status: 'success',
+                message: 'Documento PDF gerado com sucesso',
+                id: tratativa.id,
+                url: publicUrl,
+                processingTime: `${(processingTime / 1000).toFixed(2)}s`
+            };
+
+            res.json(response);
+        } catch (uploadError) {
+            logger.error('Erro no upload ou atualização da URL do documento', {
+                operation: 'PDF Upload Error',
+                error: {
+                    message: uploadError.message,
+                    stack: uploadError.stack
+                },
+                details: {
+                    tratativa_id: tratativa.id,
+                    numero_tratativa: tratativa.numero_tratativa,
+                    filename: mergedFilename
+                }
+            });
+
+            // Tente limpar arquivos temporários mesmo após falha no upload
+            try {
+                if (tempFiles.length > 0) {
+                    await pdfService.cleanupFiles(tempFiles);
+                }
+            } catch (cleanupError) {
+                logger.error('Erro ao limpar arquivos temporários após falha no upload', {
+                    operation: 'PDF Task - Error Cleanup',
+                    error: cleanupError.message
+                });
             }
-        });
 
-        // Resposta de sucesso
-        const response = {
-            status: 'success',
-            message: 'Documento PDF gerado com sucesso',
-            id: tratativa.id,
-            url: publicUrl,
-            processingTime: `${(processingTime / 1000).toFixed(2)}s`
-        };
-
-        res.json(response);
+            throw uploadError; // Repassar o erro para ser tratado pelo bloco catch externo
+        }
 
     } catch (error) {
         const processingTime = Date.now() - startTime;
@@ -1120,55 +1183,84 @@ router.post('/pdftasks/single', async (req, res) => {
             details: {
                 filename: singlePageFilename,
                 fileSize: fileContent.length,
-                tratativa_id: id,
+                tratativa_id: tratativa.id,
                 numero_tratativa: tratativa.numero_tratativa
             }
         });
 
-        const supabasePath = `tratativas/enviadas/${tratativa.numero_tratativa}/${singlePageFilename}`;
-        const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
-
-        // Atualizar URL do documento na tratativa
-        await supabaseService.updateDocumentUrl(tratativa.id, publicUrl);
-
-        // Log do processo completo (Folha Única)
-        const processingTime = Date.now() - startTime;
-        logger.info('Processo de geração e upload concluído (Folha Única)', {
-            operation: 'PDF Task Complete Single Page',
-            details: {
-                tratativa_id: id,
-                numero_tratativa: tratativa.numero_tratativa,
-                processingTimeMs: processingTime,
-                documentPath: supabasePath,
-                publicUrl: publicUrl,
-                fileSize: fileContent.length,
-                tempFilesCreated: tempFiles.length,
-                folhaUnica: true,
-                status: 'success'
-            }
-        });
-
-        // Limpar arquivos temporários
         try {
-            await pdfService.cleanupFiles(tempFiles);
-        } catch (cleanupError) {
-            logger.error('Erro ao limpar arquivos temporários', {
-                operation: 'PDF Task - Cleanup Single Page',
-                error: cleanupError.message
+            const supabasePath = `tratativas/enviadas/${tratativa.numero_tratativa}/${singlePageFilename}`;
+            const publicUrl = await supabaseService.uploadFile(fileContent, supabasePath);
+
+            // Atualizar URL do documento na tratativa
+            await supabaseService.updateDocumentUrl(tratativa.id, publicUrl);
+
+            // Log do processo completo (Folha Única)
+            const processingTime = Date.now() - startTime;
+            logger.info('Processo de geração e upload concluído (Folha Única)', {
+                operation: 'PDF Task Complete Single Page',
+                details: {
+                    tratativa_id: tratativa.id,
+                    numero_tratativa: tratativa.numero_tratativa,
+                    processingTimeMs: processingTime,
+                    documentPath: supabasePath,
+                    publicUrl: publicUrl,
+                    fileSize: fileContent.length,
+                    tempFilesCreated: tempFiles.length,
+                    folhaUnica: true,
+                    status: 'success'
+                }
             });
+
+            // Limpar arquivos temporários
+            try {
+                await pdfService.cleanupFiles(tempFiles);
+            } catch (cleanupError) {
+                logger.error('Erro ao limpar arquivos temporários', {
+                    operation: 'PDF Task - Cleanup Single Page',
+                    error: cleanupError.message
+                });
+            }
+
+            // Resposta de sucesso para Folha Única
+            const response = {
+                status: 'success',
+                message: 'Documento PDF (Folha Única) gerado com sucesso',
+                id: tratativa.id,
+                url: publicUrl,
+                folhaUnica: true,
+                processingTime: `${(processingTime / 1000).toFixed(2)}s`
+            };
+
+            return res.json(response);
+        } catch (uploadError) {
+            logger.error('Erro no upload ou atualização da URL do documento (Folha Única)', {
+                operation: 'PDF Upload Error Single Page',
+                error: {
+                    message: uploadError.message,
+                    stack: uploadError.stack
+                },
+                details: {
+                    tratativa_id: tratativa.id,
+                    numero_tratativa: tratativa.numero_tratativa,
+                    filename: singlePageFilename
+                }
+            });
+
+            // Tente limpar arquivos temporários mesmo após falha no upload
+            try {
+                if (tempFiles.length > 0) {
+                    await pdfService.cleanupFiles(tempFiles);
+                }
+            } catch (cleanupError) {
+                logger.error('Erro ao limpar arquivos temporários após falha no upload (Folha Única)', {
+                    operation: 'PDF Task - Error Cleanup Single',
+                    error: cleanupError.message
+                });
+            }
+
+            throw uploadError; // Repassar o erro para ser tratado pelo bloco catch externo
         }
-
-        // Resposta de sucesso para Folha Única
-        const response = {
-            status: 'success',
-            message: 'Documento PDF (Folha Única) gerado com sucesso',
-            id: tratativa.id,
-            url: publicUrl,
-            folhaUnica: true,
-            processingTime: `${(processingTime / 1000).toFixed(2)}s`
-        };
-
-        return res.json(response);
     } catch (error) {
         const processingTime = Date.now() - startTime;
         logger.error('Erro no processamento do documento (Folha Única)', {

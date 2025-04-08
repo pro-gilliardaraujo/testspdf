@@ -99,32 +99,45 @@ class SupabaseService {
 
     async uploadFile(file, path) {
         try {
+            // Sanitizar o caminho do arquivo
+            const sanitizedPath = this._sanitizePath(path);
+            
             logger.info('Iniciando upload de arquivo', {
                 operation: 'Upload File',
                 details: {
-                    path,
+                    path: sanitizedPath,
+                    originalPath: path,
                     fileSize: file.length,
                     destinationBucket: 'tratativas',
-                    fullPath: `storage/tratativas/${path}`
+                    fullPath: `storage/tratativas/${sanitizedPath}`
                 }
             });
 
             // Verificar se o arquivo já existe
-            const { data: existingFile } = await supabase
-                .storage
-                .from('tratativas')
-                .list(path.split('/').slice(0, -1).join('/'));
-
-            const fileName = path.split('/').pop();
-            const fileExists = existingFile?.some(f => f.name === fileName);
-
-            if (fileExists) {
-                logger.info('Arquivo já existe, será substituído', {
+            const folderPath = sanitizedPath.split('/').slice(0, -1).join('/');
+            const fileName = sanitizedPath.split('/').pop();
+            
+            // Verificar se a pasta existe para evitar erros
+            try {
+                const { data: folderExists } = await supabase
+                    .storage
+                    .from('tratativas')
+                    .list(folderPath);
+                
+                if (!folderExists) {
+                    logger.info('Pasta não existe, criando estrutura', {
+                        operation: 'Upload File',
+                        details: {
+                            folderPath
+                        }
+                    });
+                }
+            } catch (folderError) {
+                logger.info('Pasta não existe, será criada automaticamente', {
                     operation: 'Upload File',
                     details: {
-                        path,
-                        fileName,
-                        action: 'replace'
+                        folderPath,
+                        error: folderError.message
                     }
                 });
             }
@@ -132,7 +145,7 @@ class SupabaseService {
             const { data, error } = await supabase
                 .storage
                 .from('tratativas')
-                .upload(path, file, {
+                .upload(sanitizedPath, file, {
                     cacheControl: '3600',
                     upsert: true,
                     contentType: 'application/pdf'
@@ -143,7 +156,7 @@ class SupabaseService {
             const { data: urlData } = await supabase
                 .storage
                 .from('tratativas')
-                .createSignedUrl(path, 31536000, {
+                .createSignedUrl(sanitizedPath, 31536000, {
                     download: false,
                     transform: {
                         metadata: {
@@ -158,10 +171,10 @@ class SupabaseService {
                 operation: 'Upload File',
                 details: {
                     status: 'success',
-                    path,
+                    path: sanitizedPath,
                     fileName,
                     destinationBucket: 'tratativas',
-                    fullPath: `storage/tratativas/${path}`,
+                    fullPath: `storage/tratativas/${sanitizedPath}`,
                     fileSize: file.length,
                     publicUrl: urlData.signedUrl,
                     uploadResponse: data,
@@ -175,10 +188,10 @@ class SupabaseService {
             logger.info('Documento disponível para visualização', {
                 operation: 'Document Tracking',
                 details: {
-                    documentPath: path,
+                    documentPath: sanitizedPath,
                     accessUrl: urlData.signedUrl,
                     bucket: 'tratativas',
-                    storagePath: `storage/tratativas/${path}`,
+                    storagePath: `storage/tratativas/${sanitizedPath}`,
                     expirationDate: new Date(Date.now() + 31536000 * 1000).toISOString()
                 }
             });
@@ -194,6 +207,7 @@ class SupabaseService {
                 },
                 details: {
                     path,
+                    sanitizedPath: this._sanitizePath(path),
                     destinationBucket: 'tratativas',
                     attemptedFullPath: `storage/tratativas/${path}`,
                     fileSize: file.length
@@ -201,6 +215,19 @@ class SupabaseService {
             });
             throw error;
         }
+    }
+
+    // Método auxiliar para sanitizar caminhos
+    _sanitizePath(path) {
+        if (!path) return '';
+        
+        // Remover caracteres especiais e acentos
+        const sanitized = path.normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')  // Remove acentos
+            .replace(/[çÇáàãâéêíóôõúüÁÀÃÂÉÊÍÓÔÕÚÜ]/g, '_')  // Substitui caracteres especiais
+            .replace(/[^\w\-\/\.]/g, '_');  // Substitui qualquer outro caractere inválido
+        
+        return sanitized;
     }
 
     async getTratativaById(id) {
