@@ -37,6 +37,31 @@ class SupabaseService {
 
     async updateDocumentUrl(id, url) {
         try {
+            // Verificar se os parâmetros são válidos
+            if (!id) {
+                logger.error('ID nulo ou indefinido na atualização de URL', {
+                    operation: 'Update Document URL',
+                    details: {
+                        id,
+                        url,
+                        error: 'ID inválido'
+                    }
+                });
+                throw new Error('ID da tratativa é obrigatório para atualização da URL do documento');
+            }
+
+            if (!url) {
+                logger.error('URL nula ou indefinida na atualização', {
+                    operation: 'Update Document URL',
+                    details: {
+                        id,
+                        url,
+                        error: 'URL inválida'
+                    }
+                });
+                throw new Error('URL do documento é obrigatória para atualização');
+            }
+
             logger.info('Atualizando URL do documento', {
                 operation: 'Update Document URL',
                 details: {

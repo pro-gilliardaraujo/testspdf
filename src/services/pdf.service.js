@@ -12,20 +12,39 @@ class PDFService {
                 details: { url, filename }
             });
             
+            // Verificar a URL
+            if (!url) {
+                logger.error('URL inválida para download', {
+                    operation: 'Download PDF',
+                    details: { url, filename }
+                });
+                throw new Error('URL inválida para download do PDF');
+            }
+            
             // Verificar e criar diretório temp se necessário
             const tempDir = path.join(process.cwd(), 'temp');
             try {
                 await fs.access(tempDir);
+                logger.info('Diretório temporário encontrado', {
+                    operation: 'Download PDF',
+                    tempDir
+                });
             } catch (err) {
                 logger.info('Criando diretório temporário para download', {
                     operation: 'Download PDF',
-                    tempDir
+                    tempDir,
+                    error: err.message
                 });
                 await fs.mkdir(tempDir, { recursive: true });
             }
             
             // Aplicar o caminho completo para o arquivo
             const filePath = path.join(tempDir, filename);
+            
+            logger.info('Fazendo requisição HTTP para obter o PDF', {
+                operation: 'Download PDF - HTTP Request',
+                url
+            });
 
             const response = await axios({
                 method: 'GET',
@@ -37,7 +56,9 @@ class PDFService {
                 operation: 'Download PDF',
                 details: {
                     filePath,
-                    size: response.data.length
+                    size: response.data.length,
+                    status: response.status,
+                    statusText: response.statusText
                 }
             });
             

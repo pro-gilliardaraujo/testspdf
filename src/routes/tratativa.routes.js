@@ -207,6 +207,17 @@ router.post('/pdftasks', async (req, res) => {
     const startTime = Date.now();
     
     try {
+        // Log detalhado da requisição recebida
+        logger.info('Requisição para geração de PDF recebida - DETALHES COMPLETOS', {
+            operation: 'PDF Task - Request Analysis',
+            headers: req.headers,
+            body: JSON.stringify(req.body),
+            query: req.query,
+            method: req.method,
+            url: req.url,
+            timestamp: new Date().toISOString()
+        });
+        
         const { id, numero_tratativa, folhaUnica } = req.body;
 
         // Verificar se pelo menos um identificador foi fornecido
@@ -356,6 +367,17 @@ router.post('/pdftasks', async (req, res) => {
 
         let responseFolha1;
         try {
+            // Log detalhado dos parâmetros enviados para a API Doppio
+            logger.info('Chamando API Doppio para geração da Folha 1 - Parâmetros', {
+                operation: 'Doppio API Call - Folha 1',
+                templateId: process.env.DOPPIO_TEMPLATE_ID_FOLHA1,
+                apiKey: process.env.DOPPIO_API_KEY_FOLHA1 ? 'Configurado' : 'NÃO CONFIGURADO',
+                templateData: {
+                    ...templateDataFolha1,
+                    DOP_CPF: 'REDACTED' // Proteger dados sensíveis
+                }
+            });
+            
             const doppioResponse = await axios({
                 method: 'POST',
                 url: 'https://api.doppio.sh/v1/template/direct',
@@ -368,6 +390,15 @@ router.post('/pdftasks', async (req, res) => {
                     templateData: templateDataFolha1
                 },
                 responseType: 'arraybuffer'
+            });
+
+            // Log da resposta recebida da API Doppio
+            logger.info('Resposta da API Doppio recebida para Folha 1', {
+                operation: 'Doppio API Response - Folha 1',
+                status: doppioResponse.status,
+                statusText: doppioResponse.statusText,
+                headers: doppioResponse.headers,
+                dataSize: doppioResponse.data ? doppioResponse.data.length : 0
             });
 
             if (!doppioResponse.data) {
@@ -605,6 +636,17 @@ router.post('/pdftasks', async (req, res) => {
 
         let responseFolha2;
         try {
+            // Log detalhado dos parâmetros enviados para a API Doppio - Folha 2
+            logger.info('Chamando API Doppio para geração da Folha 2 - Parâmetros', {
+                operation: 'Doppio API Call - Folha 2',
+                templateId: process.env.DOPPIO_TEMPLATE_ID_FOLHA2,
+                apiKey: process.env.DOPPIO_API_KEY_FOLHA2 ? 'Configurado' : 'NÃO CONFIGURADO',
+                templateData: {
+                    ...templateDataFolha2,
+                    DOP_CPF: 'REDACTED' // Proteger dados sensíveis
+                }
+            });
+            
             const doppioResponse = await axios({
                 method: 'POST',
                 url: 'https://api.doppio.sh/v1/template/direct',
@@ -617,6 +659,15 @@ router.post('/pdftasks', async (req, res) => {
                     templateData: templateDataFolha2
                 },
                 responseType: 'arraybuffer'
+            });
+            
+            // Log da resposta recebida da API Doppio - Folha 2
+            logger.info('Resposta da API Doppio recebida para Folha 2', {
+                operation: 'Doppio API Response - Folha 2',
+                status: doppioResponse.status,
+                statusText: doppioResponse.statusText,
+                headers: doppioResponse.headers,
+                dataSize: doppioResponse.data ? doppioResponse.data.length : 0
             });
 
             if (!doppioResponse.data) {
