@@ -1275,36 +1275,34 @@ router.post('/regenerate-pdf', async (req, res) => {
             });
         }
         
-        // Repassar a solicitação para a rota apropriada adicionando o ID no body
-        // Redirecionando para a rota adequada com base no parâmetro folhaUnica
-        const routePath = folhaUnica ? '/pdftasks/single' : '/pdftasks';
-        
-        // Prepara o objeto de requisição
-        req.body = {
-            id: tratativa.id,  // Sempre usar o ID interno da tratativa
-            folhaUnica: !!folhaUnica
+        // Ao invés de redirecionar, criamos uma nova requisição ajustada
+        // e executamos o processamento diretamente
+        const newReq = {
+            ...req,
+            body: {
+                id: tratativa.id,  // Sempre usar o ID interno da tratativa
+                folhaUnica: !!folhaUnica
+            }
         };
         
-        logger.info('Redirecionando para rota de geração de PDF', {
-            operation: 'PDF Task - Regeneration',
+        logger.info('Iniciando geração de PDF a partir da regeneração', {
+            operation: 'PDF Task - From Regeneration',
             details: {
-                route: routePath,
                 id: tratativa.id,
-                folhaUnica: !!folhaUnica
+                folhaUnica: !!folhaUnica,
+                operation: folhaUnica ? 'PDF Single' : 'PDF Complete'
             }
         });
         
-        // Chamar a rota correspondente com os parâmetros atualizados
+        // Chamar diretamente o código apropriado em vez de tentar redirecionar
         if (folhaUnica) {
-            return router.handle(req, res, () => {
-                req.url = '/pdftasks/single';
-                router.handle(req, res);
-            });
+            // Chamar diretamente a lógica da rota pdftasks/single
+            // O código abaixo é uma versão simplificada - será executado o código da rota '/pdftasks'
+            // com o parâmetro folhaUnica = true
+            return await processarPDFTask(newReq, res);
         } else {
-            return router.handle(req, res, () => {
-                req.url = '/pdftasks';
-                router.handle(req, res);
-            });
+            // Chamar diretamente a lógica da rota pdftasks
+            return await processarPDFTask(newReq, res);
         }
     } catch (error) {
         logger.error('Erro na regeneração do PDF', {
@@ -1326,6 +1324,50 @@ router.post('/regenerate-pdf', async (req, res) => {
         });
     }
 });
+
+// Função auxiliar para processar a geração de PDF
+// Esta função encapsula a lógica para redirecionar de forma segura
+// para a rota correta sem causar loops infinitos
+async function processarPDFTask(req, res) {
+    try {
+        // Adicionar um flag para evitar loops infinitos
+        if (req.regenerationProcessed) {
+            throw new Error('Ciclo de regeneração detectado');
+        }
+        
+        // Marcar esta solicitação como já processada para regeneração
+        req.regenerationProcessed = true;
+        
+        logger.info('Processando geração de PDF com proteção contra loops', {
+            operation: 'PDF Task - Safe Processing',
+            body: req.body,
+            folhaUnica: req.body.folhaUnica
+        });
+        
+        // Escolher a rota correta com base no parâmetro folhaUnica
+        const route = req.body.folhaUnica ? '/pdftasks/single' : '/pdftasks';
+        
+        // Atualizar a URL para a rota correta
+        req.url = route;
+        
+        // Passar o controle para a rota apropriada
+        return router.handle(req, res);
+    } catch (error) {
+        logger.error('Erro ao processar PDF de forma segura', {
+            operation: 'PDF Task - Safe Processing Error',
+            error: {
+                message: error.message,
+                stack: error.stack
+            }
+        });
+        
+        return res.status(500).json({
+            status: 'error',
+            message: 'Erro ao processar PDF',
+            error: error.message
+        });
+    }
+}
 
 // Rota para listar tratativas sem documento gerado
 router.get('/list-without-pdf', async (req, res) => {
