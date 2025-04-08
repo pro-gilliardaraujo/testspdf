@@ -58,6 +58,12 @@ class TratativaService {
             nome_lider: 'Líder'
         };
 
+        // Lista de campos opcionais para referência
+        const camposOpcionais = [
+            'analista',
+            'nome_analista'
+        ];
+
         const camposFaltantes = [];
         for (const [campo, nome] of Object.entries(camposObrigatorios)) {
             if (!dados[campo] && dados[campo] !== 0 && dados[campo] !== '0') {
@@ -69,6 +75,7 @@ class TratativaService {
             logger.error('Campos obrigatórios faltando', {
                 operation: 'Validação de Formulário',
                 campos_faltantes: camposFaltantes,
+                campos_opcionais: camposOpcionais,
                 dados_recebidos: {
                     ...dados,
                     cpf: 'REDACTED'
@@ -137,6 +144,16 @@ class TratativaService {
                 mock: false,
                 status: dadosFormulario.status || 'Pendente'
             };
+
+            // Adicionar campo analista apenas se estiver presente
+            if (dadosFormulario.analista) {
+                dadosTratativa.analista = String(dadosFormulario.analista).trim();
+            } else if (dadosFormulario.nome_analista) {
+                dadosTratativa.analista = String(dadosFormulario.nome_analista).trim();
+            } else {
+                // Se não houver analista, definir como string vazia ou null
+                dadosTratativa.analista = '';
+            }
 
             // Log detalhado dos dados preparados para o banco
             logger.info('Dados preparados para inserção', {
