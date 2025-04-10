@@ -86,9 +86,18 @@ const cleanupSupabaseTempFiles = async () => {
             operation: 'Periodic Supabase Cleanup'
         });
     } catch (error) {
+        // Melhorar o tratamento de erros para garantir uma mensagem válida
+        const errorMessage = error?.message || 'Erro desconhecido (sem mensagem)';
+        const errorDetails = {
+            name: error?.name,
+            code: error?.code,
+            stack: error?.stack
+        };
+        
         logger.error('Erro na limpeza periódica de arquivos temporários no Supabase', {
             operation: 'Periodic Supabase Cleanup',
-            error: error.message
+            error: errorMessage,
+            errorDetails
         });
     }
 };

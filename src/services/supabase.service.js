@@ -312,9 +312,18 @@ class SupabaseService {
                 });
             }
         } catch (error) {
+            // Melhorar o tratamento de erros para garantir uma mensagem válida
+            const errorMessage = error?.message || 'Erro desconhecido (sem mensagem)';
+            const errorDetails = {
+                name: error?.name,
+                code: error?.code,
+                stack: error?.stack
+            };
+            
             logger.error('Erro ao limpar arquivos temporários no bucket', {
                 operation: 'Cleanup Temp Files',
-                error: error.message,
+                error: errorMessage,
+                errorDetails,
                 details: {
                     tratativa: tratativaNumero
                 }
