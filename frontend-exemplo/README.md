@@ -6,6 +6,7 @@ Este diretório contém exemplos de componentes React para adicionar a funcional
 
 1. **TratativasSemDocumento.jsx** - Página/componente completo que lista todas as tratativas sem documento e permite regenerá-los.
 2. **BotaoRegenerarPDF.jsx** - Botão que pode ser adicionado à tabela de tratativas existente.
+3. **BotaoExcluirTratativa.jsx** - Botão de exclusão de tratativa com modal de confirmação que exige a digitação do número da tratativa.
 
 ## Como Integrar
 
@@ -59,11 +60,56 @@ const columns = [
 ];
 ```
 
+### Opção 3: Adicionar Botão de Exclusão de Tratativa
+
+1. Copie o arquivo `BotaoExcluirTratativa.jsx` para seu projeto.
+2. Importe e use o componente na sua tabela ou modal de tratativas:
+
+```jsx
+import BotaoExcluirTratativa from './caminho/para/BotaoExcluirTratativa';
+
+// Na modal de tratativa, ao lado do botão de editar:
+<div className="modal-actions">
+  <Button type="primary" onClick={handleEdit}>
+    Editar
+  </Button>
+  <BotaoExcluirTratativa 
+    tratativa={tratativaAtual} 
+    onTratativaExcluida={() => {
+      // Função para fechar a modal e atualizar a lista
+      closeModal();
+      fetchTratativas();
+    }}
+    position="right" // posiciona à direita do botão anterior
+  />
+</div>
+
+// OU na definição das colunas da sua tabela
+const columns = [
+  // ... suas colunas existentes
+  {
+    title: 'Ações',
+    key: 'acoes',
+    render: (_, record) => (
+      <div>
+        <Button onClick={() => openModal(record)}>Visualizar</Button>
+        <BotaoExcluirTratativa 
+          tratativa={record}
+          onTratativaExcluida={() => fetchTratativas()}
+          position="right"
+        />
+      </div>
+    ),
+  },
+];
+```
+
 ## API Necessária
 
 O backend já foi atualizado com os seguintes endpoints:
 
 1. `GET /api/tratativa/list-without-pdf` - Lista todas as tratativas sem documento
 2. `POST /api/tratativa/regenerate-pdf` - Regenera o PDF para uma tratativa específica
+3. `DELETE /api/tratativa/delete/:id` - Exclui uma tratativa pelo ID
 
 Os componentes React estão configurados para utilizar esses endpoints automaticamente. 

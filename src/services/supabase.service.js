@@ -419,6 +419,114 @@ class SupabaseService {
             throw error;
         }
     }
+
+    async deleteTratativa(id) {
+        try {
+            logger.info('Iniciando exclusão de tratativa', {
+                operation: 'Delete Tratativa',
+                details: { id }
+            });
+
+            // Primeiro, buscar a tratativa para verificar se existe e obter o número da tratativa
+            const { data: tratativa, error: fetchError } = await this.getTratativaById(id);
+            
+            if (fetchError) {
+                throw fetchError;
+            }
+            
+            if (!tratativa) {
+                logger.error('Tratativa não encontrada para exclusão', {
+                    operation: 'Delete Tratativa',
+                    details: { id }
+                });
+                return { success: false, error: { message: `Tratativa com ID ${id} não encontrada` } };
+            }
+            
+            // Se a tratativa tiver documentos no storage, excluir também
+            if (tratativa.url_documento_enviado) {
+                try {
+                    // Extrair o caminho do arquivo no storage a partir da URL
+                    const urlPartes = tratativa.url_documento_enviado.split('?')[0];
+                    const caminho = urlPartes.split('/storage/tratativas/')[1];
+                    
+                    if (caminho) {
+                        logger.info('Removendo documento do storage', {
+                            operation: 'Delete Tratativa - Storage',
+                            details: { 
+                                id, 
+                                caminho,
+                                url: tratativa.url_documento_enviado
+                            }
+                        });
+                        
+                        // Remover documento do storage
+                        const { error: storageError } = await supabase
+                            .storage
+                            .from('tratativas')
+                            .remove([caminho]);
+                            
+                        if (storageError) {
+                            logger.warn('Erro ao remover documento do storage, continuando com a exclusão da tratativa', {
+                                operation: 'Delete Tratativa - Storage Error',
+                                error: storageError.message,
+                                details: { id, caminho }
+                            });
+                        } else {
+                            logger.info('Documento removido do storage com sucesso', {
+                                operation: 'Delete Tratativa - Storage Success',
+                                details: { id, caminho }
+                            });
+                        }
+                    }
+                } catch (storageError) {
+                    logger.warn('Erro ao processar exclusão do documento, continuando com a exclusão da tratativa', {
+                        operation: 'Delete Tratativa - Storage Processing Error',
+                        error: storageError.message,
+                        details: { id, url: tratativa.url_documento_enviado }
+                    });
+                }
+            }
+            
+            // Excluir a tratativa
+            const { error: deleteError } = await supabase
+                .from('tratativas')
+                .delete()
+                .eq('id', id);
+                
+            if (deleteError) {
+                throw deleteError;
+            }
+            
+            logger.info('Tratativa excluída com sucesso', {
+                operation: 'Delete Tratativa',
+                details: { 
+                    id, 
+                    numero_tratativa: tratativa.numero_tratativa,
+                    funcionario: tratativa.funcionario 
+                }
+            });
+            
+            return { success: true };
+        } catch (error) {
+            logger.error('Erro ao excluir tratativa', {
+                operation: 'Delete Tratativa',
+                error: {
+                    message: error.message,
+                    code: error.code,
+                    stack: error.stack
+                },
+                details: { id }
+            });
+            
+            return { 
+                success: false, 
+                error: { 
+                    message: error.message || 'Erro desconhecido ao excluir tratativa',
+                    code: error.code 
+                } 
+            };
+        }
+    }
 }
 
 module.exports = new SupabaseService(); 

@@ -1708,4 +1708,58 @@ router.get('/list-without-pdf', async (req, res) => {
     }
 });
 
+// Rota para excluir uma tratativa
+router.delete('/delete/:id', async (req, res) => {
+    const { id } = req.params;
+    
+    // Log detalhado da requisição recebida
+    logger.info('Requisição para exclusão de tratativa recebida', {
+        operation: 'Delete Tratativa',
+        parameters: {
+            id
+        }
+    });
+    
+    if (!id) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'É necessário fornecer o ID da tratativa'
+        });
+    }
+    
+    try {
+        // Executar a exclusão
+        const result = await supabaseService.deleteTratativa(id);
+        
+        if (result.success) {
+            return res.json({
+                status: 'success',
+                message: 'Tratativa excluída com sucesso'
+            });
+        } else {
+            return res.status(400).json({
+                status: 'error',
+                message: result.error?.message || 'Erro ao excluir tratativa'
+            });
+        }
+    } catch (error) {
+        logger.error('Erro na exclusão da tratativa', {
+            operation: 'Delete Tratativa',
+            error: {
+                message: error.message,
+                stack: error.stack
+            },
+            details: {
+                id
+            }
+        });
+        
+        return res.status(500).json({
+            status: 'error',
+            message: 'Erro ao excluir tratativa',
+            error: error.message
+        });
+    }
+});
+
 module.exports = router; 
