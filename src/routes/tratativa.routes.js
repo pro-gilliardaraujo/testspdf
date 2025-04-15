@@ -347,7 +347,7 @@ router.post('/pdftasks', async (req, res) => {
             DOP_CODIGO: tratativa.codigo_infracao,
             DOP_GRAU: grauPenalidade,
             DOP_PENALIDADE: descricaoPenalidade,
-            DOP_IMAGEM: tratativa.imagem_evidencia1,
+            DOP_IMAGEM: tratativa.imagem_evidencia1 || process.env.URL_IMAGEM_PADRAO || '', // Valor padrão para imagem
             DOP_LIDER: tratativa.lider,
             DOP_CPF: tratativa.cpf,
             DOP_DATA_EXTENSA: formatarDataExtensa(tratativa.data_infracao)
@@ -365,7 +365,6 @@ router.post('/pdftasks', async (req, res) => {
             'DOP_CODIGO',
             'DOP_GRAU',
             'DOP_PENALIDADE',
-            'DOP_IMAGEM',
             'DOP_LIDER',
             'DOP_CPF',
             'DOP_DATA_EXTENSA'
@@ -1063,7 +1062,7 @@ router.post('/pdftasks/single', async (req, res) => {
             DOP_CODIGO: tratativa.codigo_infracao,
             DOP_GRAU: grauPenalidade,
             DOP_PENALIDADE: descricaoPenalidade,
-            DOP_IMAGEM: tratativa.imagem_evidencia1,
+            DOP_IMAGEM: tratativa.imagem_evidencia1 || process.env.URL_IMAGEM_PADRAO || '', // Valor padrão para imagem
             DOP_LIDER: tratativa.lider,
             DOP_CPF: tratativa.cpf,
             DOP_DATA_EXTENSA: formatarDataExtensa(tratativa.data_infracao)
@@ -1081,7 +1080,6 @@ router.post('/pdftasks/single', async (req, res) => {
             'DOP_CODIGO',
             'DOP_GRAU',
             'DOP_PENALIDADE',
-            'DOP_IMAGEM',
             'DOP_LIDER',
             'DOP_CPF',
             'DOP_DATA_EXTENSA'
@@ -1417,7 +1415,7 @@ async function processarPDFTask(req, res) {
                 DOP_CODIGO: tratativa.codigo_infracao,
                 DOP_GRAU: grauPenalidade,
                 DOP_PENALIDADE: descricaoPenalidade,
-                DOP_IMAGEM: tratativa.imagem_evidencia1,
+                DOP_IMAGEM: tratativa.imagem_evidencia1 || process.env.URL_IMAGEM_PADRAO || '', // Valor padrão para imagem
                 DOP_LIDER: tratativa.lider,
                 DOP_CPF: tratativa.cpf,
                 DOP_DATA_EXTENSA: formatarDataExtensa(tratativa.data_infracao)
