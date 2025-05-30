@@ -9,6 +9,7 @@ const corsOptions = require('./config/cors');
 const tratativaRoutes = require('./routes/tratativa.routes');
 const pdfService = require('./services/pdf.service');
 const supabaseService = require('./services/supabase.service');
+const supabase = require('./config/supabase');
 
 const app = express();
 
