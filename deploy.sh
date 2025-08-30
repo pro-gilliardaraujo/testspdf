@@ -44,15 +44,9 @@ echo -e "${YELLOW}💾 Fazendo backup do .env...${NC}"
 if [ -f ".env" ]; then
     cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
     echo -e "${GREEN}✅ Backup criado${NC}"
-fi
-
-# 4. Copiar novo .env
-echo -e "${YELLOW}📄 Atualizando .env...${NC}"
-if [ -f "env.txt" ]; then
-    cp env.txt .env
-    echo -e "${GREEN}✅ .env atualizado${NC}"
 else
-    echo -e "${RED}❌ env.txt não encontrado!${NC}"
+    echo -e "${RED}❌ Arquivo .env não encontrado!${NC}"
+    echo -e "${YELLOW}💡 Certifique-se de que o arquivo .env existe no diretório do projeto${NC}"
     exit 1
 fi
 
@@ -117,10 +111,36 @@ else
     echo -e "${GREEN}✅ Certificados SSL válidos${NC}"
 fi
 
-# 6. Atualizar variáveis de ambiente para usar certificados corretos
-echo -e "${YELLOW}🔧 Configurando caminhos dos certificados...${NC}"
-echo "SSL_KEY_PATH=$SSL_DIR/privkey.pem" >> .env
-echo "SSL_CERT_PATH=$SSL_DIR/fullchain.pem" >> .env
+# 6. Garantir que as variáveis SSL estão configuradas corretamente
+echo -e "${YELLOW}🔧 Verificando configuração SSL no .env...${NC}"
+
+# Verificar se as variáveis SSL existem e estão corretas
+if grep -q "SSL_KEY_PATH=" .env; then
+    # Atualizar variável existente
+    sed -i "s|SSL_KEY_PATH=.*|SSL_KEY_PATH=$SSL_DIR/privkey.pem|g" .env
+else
+    # Adicionar variável se não existir
+    echo "SSL_KEY_PATH=$SSL_DIR/privkey.pem" >> .env
+fi
+
+if grep -q "SSL_CERT_PATH=" .env; then
+    # Atualizar variável existente  
+    sed -i "s|SSL_CERT_PATH=.*|SSL_CERT_PATH=$SSL_DIR/fullchain.pem|g" .env
+else
+    # Adicionar variável se não existir
+    echo "SSL_CERT_PATH=$SSL_DIR/fullchain.pem" >> .env
+fi
+
+# Garantir que USE_HTTPS está habilitado
+if grep -q "USE_HTTPS=" .env; then
+    sed -i "s|USE_HTTPS=.*|USE_HTTPS=true|g" .env
+elif grep -q "USE_HTTP=" .env; then
+    sed -i "s|USE_HTTP=.*|USE_HTTPS=true|g" .env
+else
+    echo "USE_HTTPS=true" >> .env
+fi
+
+echo -e "${GREEN}✅ Configurações SSL atualizadas no .env${NC}"
 
 # 7. Instalar/atualizar dependências
 echo -e "${YELLOW}📦 Instalando dependências...${NC}"
