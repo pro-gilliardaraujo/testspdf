@@ -1,11 +1,11 @@
-RESULTADOS DOS TESTES DE API - 2025-08-30T09-50-52
+RESULTADOS DOS TESTES DE API - 2025-08-30T11-46-47
 
 [PASSOU ✅] GET /list - 38 tratativas encontradas
 [PASSOU ✅] GET /list-without-pdf - 0 tratativas sem PDF encontradas
-[PASSOU ✅] POST /create - ID criado: 141
-[PASSOU ✅] POST /pdftasks - Geração de PDF iniciada para ID 141
-[PASSOU ✅] POST /pdftasks/single - PDF solicitado para ID: 141
-[PASSOU ✅] POST /regenerate-pdf - Regeneração solicitada para ID: 141
-[PASSOU ✅] DELETE /delete/:id - ID excluído: 141
+[PASSOU ✅] POST /create - ID criado: 142
+[PASSOU ✅] POST /pdftasks - Geração de PDF iniciada para ID 142
+[PASSOU ✅] POST /pdftasks/single - PDF solicitado para ID: 142
+[PASSOU ✅] POST /regenerate-pdf - Regeneração solicitada para ID: 142
+[PASSOU ✅] DELETE /delete/:id - ID excluído: 142
 
 RESUMO: 7 testes passaram, 0 testes falharam.
