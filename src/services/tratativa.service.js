@@ -49,7 +49,6 @@ class TratativaService {
             data_infracao: 'Data da Infração',
             hora_infracao: 'Hora da Infração',
             valor_praticado: 'Valor Registrado',
-            metrica: 'Métrica',
             valor_limite: 'Valor Limite',
             codigo_infracao: 'Código da Infração',
             penalidade: 'Tipo de Penalidade',
@@ -135,12 +134,14 @@ class TratativaService {
                 codigo_infracao: String(dadosFormulario.codigo_infracao || '').trim(),
                 descricao_infracao: String(dadosFormulario.infracao_cometida || '').trim(),
                 penalidade: String(dadosFormulario.penalidade || '').trim(),
-                texto_infracao: String(dadosFormulario.texto_infracao || '').trim(),
+                // Removendo o campo texto_infracao que está causando o erro
+                // texto_infracao: String(dadosFormulario.texto_excesso || '').trim(),
                 lider: String(dadosFormulario.nome_lider || '').trim(),
                 valor_praticado,
-                medida: metrica,
+                metrica: metrica,
                 texto_limite: valor_limite,
-                url_imagem: String(dadosFormulario.url_imagem || '').trim(),
+                // Removendo o campo url_imagem que está causando o erro
+                // url_imagem: String(dadosFormulario.url_imagem || '').trim(),
                 mock: false,
                 status: dadosFormulario.status || 'Pendente'
             };
@@ -198,7 +199,11 @@ class TratativaService {
                 DOP_IMAGEM: data.url_imagem,
                 DOP_LIDER: data.lider,
                 DOP_CPF: data.cpf,
-                tipo_penalidade: data.penalidade
+                tipo_penalidade: data.penalidade,
+                // Adicionando campos obrigatórios para a Folha 2
+                DOP_TEXTO_ADVERTENCIA: data.texto_advertencia || 'O colaborador foi advertido conforme as normas da empresa.',
+                DOP_ADVERTIDO: data.penalidade.toLowerCase().includes('advertência') ? 'X' : '',
+                DOP_SUSPENSO: data.penalidade.toLowerCase().includes('suspensão') ? 'X' : ''
             };
 
             return {
@@ -224,4 +229,4 @@ class TratativaService {
     }
 }
 
-module.exports = new TratativaService(); 
+module.exports = new TratativaService();

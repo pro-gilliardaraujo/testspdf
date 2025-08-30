@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const https = require('https');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const logger = require('./utils/logger');
@@ -129,20 +130,37 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
+const USE_HTTPS = process.env.USE_HTTPS === 'true';
+let server;
 
-// HTTPS configuration
-const httpsOptions = {
-    key: fs.readFileSync(process.env.SSL_KEY_PATH),
-    cert: fs.readFileSync(process.env.SSL_CERT_PATH)
-};
+if (USE_HTTPS) {
+    try {
+        // HTTPS configuration
+        const httpsOptions = {
+            key: fs.readFileSync(process.env.SSL_KEY_PATH),
+            cert: fs.readFileSync(process.env.SSL_CERT_PATH)
+        };
 
-// Create HTTPS server
-const server = https.createServer(httpsOptions, app);
+        // Create HTTPS server
+        server = https.createServer(httpsOptions, app);
+        logger.info('Iniciando servidor em modo HTTPS');
+    } catch (error) {
+        logger.error('Erro ao configurar HTTPS, voltando para HTTP', {
+            error: error.message
+        });
+        server = http.createServer(app);
+    }
+} else {
+    // Create HTTP server for local development
+    server = http.createServer(app);
+    logger.info('Iniciando servidor em modo HTTP (desenvolvimento local)');
+}
 
 // Start server
 server.listen(PORT, '0.0.0.0', () => {
-    logger.info(`Server started on port ${PORT}`);
-    console.log(`🚀 Server running on port ${PORT}`);
+    const protocol = USE_HTTPS ? 'HTTPS' : 'HTTP';
+    logger.info(`Server started on port ${PORT} using ${protocol}`);
+    console.log(`🚀 Server running on ${protocol}://${USE_HTTPS ? 'iblogistica.ddns.net' : 'localhost'}:${PORT}`);
 });
 
 // Graceful shutdown
@@ -152,4 +170,4 @@ process.on('SIGTERM', () => {
         logger.info('Server closed successfully');
         process.exit(0);
     });
-}); 
+});

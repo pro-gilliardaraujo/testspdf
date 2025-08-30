@@ -194,8 +194,9 @@ const formatarDataBrasileira = (data) => {
  * @returns {string} URL completa do servidor
  */
 function getServerUrl(req) {
-    const protocol = 'https';
-    let host = 'iblogistica.ddns.net:3000'; // Default fallback
+    // Determinar o protocolo com base no ambiente
+    const protocol = process.env.USE_HTTPS === 'true' ? 'https' : 'http';
+    let host = process.env.USE_HTTPS === 'true' ? 'iblogistica.ddns.net:3000' : 'localhost:3000'; // Default fallback
 
     // Verificar diferentes formas de acessar o host de maneira segura
     if (req) {
@@ -207,6 +208,13 @@ function getServerUrl(req) {
             host = req.header('host');
         }
     }
+    
+    logger.info('URL do servidor gerada', {
+        operation: 'getServerUrl',
+        protocol,
+        host,
+        fullUrl: `${protocol}://${host}`
+    });
     
     return `${protocol}://${host}`;
 }
@@ -712,7 +720,7 @@ router.post('/pdftasks', async (req, res) => {
             ...templateDataFolha1,
             DOP_ADVERTIDO: tratativa.advertido === 'Advertido' ? 'X' : ' ',
             DOP_SUSPENSO: tratativa.advertido === 'Suspenso' ? 'X' : ' ',
-            DOP_TEXTO_ADVERTENCIA: tratativa.texto_advertencia
+            DOP_TEXTO_ADVERTENCIA: tratativa.texto_advertencia || 'O colaborador foi advertido conforme as normas da empresa.'
         };
 
         // Log para debug do campo advertido
@@ -1810,4 +1818,4 @@ router.delete('/delete/:id', async (req, res) => {
     }
 });
 
-module.exports = router; 
+module.exports = router;

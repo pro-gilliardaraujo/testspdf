@@ -2,6 +2,24 @@
 
 ## 1. Para o Time de Backend
 
+### 1.0. Executando o Servidor Localmente para Testes
+
+```bash
+# 1. Configurar o ambiente para desenvolvimento local
+# Certifique-se de que o arquivo .env tenha USE_HTTPS=false e ENVIRONMENT=development
+
+# 2. Instalar dependências (se ainda não tiver feito)
+npm install
+
+# 3. Iniciar o servidor em modo de desenvolvimento
+node dev.js
+
+# Ou alternativamente
+npm run dev
+```
+
+O servidor estará disponível em http://localhost:3000 e usará HTTP em vez de HTTPS para facilitar o desenvolvimento local.
+
 ### 1.1. Limpeza e Instalação no Servidor
 
 ```bash
@@ -281,4 +299,4 @@ No `package.json`:
 ### 6.3. Atualização
 - Use o script `deploy.sh` para atualizações
 - Verifique os logs após cada atualização
-- Mantenha um registro de versões deployadas 
+- Mantenha um registro de versões deployadas
