@@ -38,6 +38,32 @@ class TratativaService {
         return padrao;
     }
 
+    // Método auxiliar para detectar tipo de penalidade
+    isPenaltyType(value, type) {
+        if (!value) return false;
+        
+        const valueStr = String(value).toLowerCase();
+        
+        if (type === 'advertencia') {
+            return valueStr.includes('advertencia') || valueStr.includes('advertência') || 
+                   valueStr.includes('orientacao') || valueStr.includes('orientação') ||
+                   valueStr.includes('verbal');
+        }
+        
+        if (type === 'suspensao') {
+            return valueStr.includes('suspensao') || valueStr.includes('suspensão') ||
+                   valueStr.includes('suspenso');
+        }
+        
+        // Para códigos como P1|P2 ou P3|P4
+        if (type.includes('|')) {
+            const codes = type.split('|');
+            return codes.some(code => valueStr.includes(code.toLowerCase()));
+        }
+        
+        return valueStr.includes(type.toLowerCase());
+    }
+
     validarDadosFormulario(dados) {
         // Campos obrigatórios que existem na tabela do banco
         const camposObrigatorios = {
@@ -137,14 +163,16 @@ class TratativaService {
                 status: dadosFormulario.status || 'Pendente'
             };
 
-            // Adicionar campo analista apenas se estiver presente
+            // Adicionar campo analista
             if (dadosFormulario.analista) {
                 dadosTratativa.analista = String(dadosFormulario.analista).trim();
             } else if (dadosFormulario.nome_analista) {
                 dadosTratativa.analista = String(dadosFormulario.nome_analista).trim();
+            } else if (dadosFormulario.nome_lider) {
+                // Se não tiver analista específico, usar o líder como analista
+                dadosTratativa.analista = String(dadosFormulario.nome_lider).trim();
             } else {
-                // Se não houver analista, definir como string vazia ou null
-                dadosTratativa.analista = '';
+                dadosTratativa.analista = 'Sistema';
             }
 
             // Log detalhado dos dados preparados para o banco
@@ -174,7 +202,7 @@ class TratativaService {
                 throw error;
             }
 
-            // Preparar dados para o template do PDF
+            // Preparar dados para o template do PDF usando dados originais do frontend
             const templateData = {
                 DOP_NUMERO_DOCUMENTO: data.numero_tratativa,
                 DOP_NOME: data.funcionario,
@@ -186,15 +214,16 @@ class TratativaService {
                 DOP_DATA_EXTENSA: this.formatarDataExtensa(data.data_infracao),
                 DOP_CODIGO: data.codigo_infracao,
                 DOP_GRAU: data.codigo_infracao.split('-')[0],
-                DOP_PENALIDADE: data.texto_infracao,
-                DOP_IMAGEM: data.url_imagem,
+                // Usar dados originais do frontend (não salvos no banco)
+                DOP_PENALIDADE: dadosFormulario.texto_infracao || dadosFormulario.penalidade || 'Penalidade não especificada',
+                DOP_IMAGEM: dadosFormulario.url_imagem || process.env.URL_IMAGEM_PADRAO || '',
                 DOP_LIDER: data.lider,
                 DOP_CPF: data.cpf,
                 tipo_penalidade: data.penalidade,
-                // Adicionando campos obrigatórios para a Folha 2
-                DOP_TEXTO_ADVERTENCIA: data.texto_advertencia || 'O colaborador foi advertido conforme as normas da empresa.',
-                DOP_ADVERTIDO: data.penalidade.toLowerCase().includes('advertência') ? 'X' : '',
-                DOP_SUSPENSO: data.penalidade.toLowerCase().includes('suspensão') ? 'X' : ''
+                // Corrigir detecção de tipo de penalidade
+                DOP_TEXTO_ADVERTENCIA: 'O colaborador foi advertido conforme as normas da empresa.',
+                DOP_ADVERTIDO: this.isPenaltyType(data.penalidade, 'advertencia') || this.isPenaltyType(data.codigo_infracao, 'P1|P2') ? 'X' : '',
+                DOP_SUSPENSO: this.isPenaltyType(data.penalidade, 'suspensao') || this.isPenaltyType(data.codigo_infracao, 'P3|P4') ? 'X' : ''
             };
 
             return {
