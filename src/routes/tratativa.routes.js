@@ -433,7 +433,17 @@ router.post('/pdftasks', async (req, res) => {
             throw new Error('Campo descrição da penalidade é obrigatório para gerar o PDF');
         }
 
-        // Preparar dados para Folha 1
+        // PROBLEMA IDENTIFICADO: Usar dados do banco que não tem todos os campos!
+        // SOLUÇÃO: Usar dados originais salvos no momento da criação
+        let dadosOriginais = {};
+        try {
+            if (tratativa.dados_originais) {
+                dadosOriginais = JSON.parse(tratativa.dados_originais);
+            }
+        } catch (e) {
+            logger.warn('Erro ao parse dados_originais, usando fallbacks', { error: e.message });
+        }
+
         const templateDataFolha1 = {
             DOP_NUMERO_DOCUMENTO: tratativa.numero_tratativa,
             DOP_NOME: tratativa.funcionario,
@@ -444,11 +454,18 @@ router.post('/pdftasks', async (req, res) => {
             DOP_HORA: tratativa.hora_infracao,
             DOP_CODIGO: tratativa.codigo_infracao,
             DOP_GRAU: grauPenalidade,
-            DOP_PENALIDADE: descricaoPenalidade,
-            DOP_IMAGEM: tratativa.imagem_evidencia1 || process.env.URL_IMAGEM_PADRAO || '', // Valor padrão para imagem
+            // USAR DADOS ORIGINAIS SALVOS!
+            DOP_PENALIDADE: dadosOriginais.descricao_penalidade || dadosOriginais.texto_infracao || descricaoPenalidade,
+            DOP_IMAGEM: dadosOriginais.url_imagem || process.env.URL_IMAGEM_PADRAO || 'https://via.placeholder.com/400x300',
             DOP_LIDER: tratativa.lider,
             DOP_CPF: tratativa.cpf,
-            DOP_DATA_EXTENSA: formatarDataExtensa(tratativa.data_infracao)
+            DOP_DATA_EXTENSA: formatarDataExtensa(tratativa.data_infracao),
+            // USAR CAMPO ADVERTIDO ORIGINAL!
+            DOP_ADVERTIDO: (dadosOriginais.advertido === 'Advertido') || 
+                          (tratativa.codigo_infracao && (tratativa.codigo_infracao.includes('P1') || tratativa.codigo_infracao.includes('P2'))) ? 'X' : '',
+            DOP_SUSPENSO: (dadosOriginais.advertido === 'Suspenso') || 
+                         (tratativa.codigo_infracao && (tratativa.codigo_infracao.includes('P3') || tratativa.codigo_infracao.includes('P4'))) ? 'X' : '',
+            DOP_TEXTO_ADVERTENCIA: 'O colaborador foi advertido conforme as normas da empresa.'
         };
 
         // Validar campos obrigatórios Folha 1

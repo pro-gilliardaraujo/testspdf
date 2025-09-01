@@ -178,17 +178,32 @@ class TratativaService {
                 descricao_infracao: String(dadosFormulario.infracao_cometida || '').trim(),
                 penalidade: String(dadosFormulario.penalidade || '').trim(),
                 lider: String(dadosFormulario.nome_lider || '').trim(),
-                // Campos removidos por não existirem na tabela:
-                // valor_praticado, texto_limite, url_imagem, texto_infracao
+                // Salvar dados originais do frontend em JSON para usar no PDF
+                dados_originais: JSON.stringify({
+                    url_imagem: dadosFormulario.url_imagem,
+                    descricao_penalidade: dadosFormulario.descricao_penalidade,
+                    texto_infracao: dadosFormulario.texto_infracao,
+                    advertido: dadosFormulario.advertido,
+                    valor_registrado: dadosFormulario.valor_praticado,
+                    valor_limite: dadosFormulario.valor_limite,
+                    metrica: dadosFormulario.metrica
+                }),
                 mock: false,
                 status: dadosFormulario.status || 'Pendente'
             };
 
-            // Adicionar campo analista (extrair email @ib.logistica)
-            const emailAnalista = this.extractAnalystEmail(dadosFormulario.analista) || 
-                                 this.extractAnalystEmail(dadosFormulario.nome_analista);
+            // Adicionar campo analista
+            // Se vier email, extrair. Se vier só nome, usar o nome mesmo
+            let analista = '';
+            if (dadosFormulario.analista) {
+                const emailExtraido = this.extractAnalystEmail(dadosFormulario.analista);
+                analista = emailExtraido || dadosFormulario.analista; // Usar email se encontrar, senão usar o texto original
+            } else if (dadosFormulario.nome_analista) {
+                const emailExtraido = this.extractAnalystEmail(dadosFormulario.nome_analista);
+                analista = emailExtraido || dadosFormulario.nome_analista;
+            }
             
-            dadosTratativa.analista = emailAnalista;
+            dadosTratativa.analista = analista;
 
             // Log detalhado dos dados preparados para o banco
             logger.info('Dados preparados para inserção', {
@@ -230,16 +245,34 @@ class TratativaService {
                 DOP_CODIGO: data.codigo_infracao,
                 DOP_GRAU: data.codigo_infracao.split('-')[0],
                 // Usar dados originais do frontend (não salvos no banco)
-                DOP_PENALIDADE: dadosFormulario.texto_infracao || dadosFormulario.penalidade || 'Penalidade não especificada',
+                DOP_PENALIDADE: dadosFormulario.descricao_penalidade || dadosFormulario.texto_infracao || dadosFormulario.penalidade || 'Penalidade não especificada',
                 DOP_IMAGEM: dadosFormulario.url_imagem || process.env.URL_IMAGEM_PADRAO || '',
                 DOP_LIDER: data.lider,
                 DOP_CPF: data.cpf,
                 tipo_penalidade: data.penalidade,
-                // Corrigir detecção de tipo de penalidade
+                // Usar campo advertido do frontend + detectar por código/penalidade
                 DOP_TEXTO_ADVERTENCIA: 'O colaborador foi advertido conforme as normas da empresa.',
-                DOP_ADVERTIDO: this.isPenaltyType(data.penalidade, 'advertencia') || this.isPenaltyType(data.codigo_infracao, 'P1|P2') ? 'X' : '',
-                DOP_SUSPENSO: this.isPenaltyType(data.penalidade, 'suspensao') || this.isPenaltyType(data.codigo_infracao, 'P3|P4') ? 'X' : ''
+                DOP_ADVERTIDO: (dadosFormulario.advertido === 'Advertido') || 
+                              this.isPenaltyType(data.penalidade, 'advertencia') || 
+                              this.isPenaltyType(data.codigo_infracao, 'P1|P2') ? 'X' : '',
+                DOP_SUSPENSO: (dadosFormulario.advertido === 'Suspenso') || 
+                             this.isPenaltyType(data.penalidade, 'suspensao') || 
+                             this.isPenaltyType(data.codigo_infracao, 'P3|P4') ? 'X' : ''
             };
+
+            // Log para debug dos dados do template
+            logger.info('Dados do template PDF preparados', {
+                operation: 'Template PDF Debug',
+                campos_criticos: {
+                    DOP_IMAGEM: templateData.DOP_IMAGEM,
+                    DOP_PENALIDADE: templateData.DOP_PENALIDADE,
+                    DOP_ADVERTIDO: templateData.DOP_ADVERTIDO,
+                    DOP_SUSPENSO: templateData.DOP_SUSPENSO,
+                    frontend_advertido: dadosFormulario.advertido,
+                    frontend_url_imagem: dadosFormulario.url_imagem,
+                    frontend_descricao_penalidade: dadosFormulario.descricao_penalidade
+                }
+            });
 
             return {
                 id: data.id,
