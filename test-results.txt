@@ -1,11 +1,11 @@
-RESULTADOS DOS TESTES DE API - 2025-08-30T11-46-47
+RESULTADOS DOS TESTES DE API - 2025-09-01T19-54-54
 
-[PASSOU ✅] GET /list - 38 tratativas encontradas
-[PASSOU ✅] GET /list-without-pdf - 0 tratativas sem PDF encontradas
-[PASSOU ✅] POST /create - ID criado: 142
-[PASSOU ✅] POST /pdftasks - Geração de PDF iniciada para ID 142
-[PASSOU ✅] POST /pdftasks/single - PDF solicitado para ID: 142
-[PASSOU ✅] POST /regenerate-pdf - Regeneração solicitada para ID: 142
-[PASSOU ✅] DELETE /delete/:id - ID excluído: 142
+[PASSOU ✅] GET /list - 39 tratativas encontradas
+[FALHOU ❌] GET /list-without-pdf - Request failed with status code 500
+[FALHOU ❌] POST /create - Request failed with status code 500 - {"status":"error","message":"Erro ao criar tratativa","details":"[object Object]"}
+[PASSOU ✅] POST /pdftasks - Geração de PDF iniciada para ID 146
+[PASSOU ✅] POST /pdftasks/single - PDF solicitado para ID: 146
+[PASSOU ✅] POST /regenerate-pdf - Regeneração solicitada para ID: 146
+[PASSOU ✅] DELETE /delete/:id - ID excluído: 136
 
-RESUMO: 7 testes passaram, 0 testes falharam.
+RESUMO: 5 testes passaram, 2 testes falharam.

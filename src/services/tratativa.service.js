@@ -110,7 +110,7 @@ class TratativaService {
         const camposFaltantes = [];
         for (const [campo, nome] of Object.entries(camposObrigatorios)) {
             // Campos que podem ter valores padrão
-            const camposComPadrao = ['codigo_infracao'];
+            const camposComPadrao = ['codigo_infracao', 'valor_praticado', 'metrica', 'valor_limite', 'url_imagem'];
             
             if (!dados[campo] && dados[campo] !== 0 && dados[campo] !== '0') {
                 // Se o campo tem padrão e está vazio, usar valor padrão
@@ -165,7 +165,7 @@ class TratativaService {
                 status: 'Dados válidos para o schema do banco'
             });
 
-            // Preparar dados para o banco
+            // Preparar dados para o banco (apenas campos que sabemos que existem)
             const dadosTratativa = {
                 numero_tratativa: String(dadosFormulario.numero_documento || '').trim(),
                 funcionario: String(dadosFormulario.nome_funcionario || '').trim(),
@@ -178,11 +178,18 @@ class TratativaService {
                 descricao_infracao: String(dadosFormulario.infracao_cometida || '').trim(),
                 penalidade: String(dadosFormulario.penalidade || '').trim(),
                 lider: String(dadosFormulario.nome_lider || '').trim(),
-                // Campos removidos por não existirem na tabela:
-                // valor_praticado, texto_limite, url_imagem, texto_infracao, dados_originais
                 mock: false,
                 status: dadosFormulario.status || 'Pendente'
             };
+
+            // Log dos dados que serão inseridos
+            logger.info('Dados preparados para inserção no banco', {
+                operation: 'Criar Tratativa - Dados Banco',
+                dados_tratativa: {
+                    ...dadosTratativa,
+                    cpf: 'REDACTED'
+                }
+            });
 
             // Adicionar campo analista
             // Se vier email, extrair. Se vier só nome, usar o nome mesmo
@@ -268,7 +275,8 @@ class TratativaService {
 
             return {
                 id: data.id,
-                templateData
+                templateData,
+                dadosOriginais: dadosFormulario // Preservar dados originais para PDF
             };
         } catch (error) {
             // Log detalhado do erro

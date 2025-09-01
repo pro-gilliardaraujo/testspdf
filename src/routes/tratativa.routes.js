@@ -247,18 +247,23 @@ router.post('/create', async (req, res) => {
             infracao_cometida: req.body.descricao_infracao || req.body.infracao_cometida,
             data_infracao: req.body.data_infracao,
             hora_infracao: req.body.hora_infracao,
-            valor_praticado: req.body.valor_registrado || req.body.valor_praticado,
-            metrica: req.body.metrica,
-            valor_limite: req.body.valor_limite || req.body.texto_limite,
+            valor_praticado: req.body.valor_registrado || req.body.valor_praticado || '0',
+            metrica: req.body.metrica || 'ocorrências',
+            valor_limite: req.body.valor_limite || req.body.texto_limite || '0',
             codigo_infracao: req.body.codigo_infracao,
             penalidade: req.body.tipo_penalidade || req.body.penalidade,
-            texto_infracao: req.body.descricao_penalidade || req.body.texto_infracao,
+            texto_infracao: req.body.descricao_penalidade || req.body.texto_infracao || req.body.tipo_penalidade || req.body.penalidade,
             url_imagem: req.body.url_imagem,
-            nome_lider: req.body.lider || req.body.nome_lider
+            nome_lider: req.body.lider || req.body.nome_lider,
+            // Adicionar campos específicos para PDF
+            advertido: req.body.advertido,
+            descricao_penalidade: req.body.descricao_penalidade
         };
 
         // Criar tratativa no banco
-        const { id: tratativaId } = await tratativaService.criarTratativa(dadosFormulario);
+        const result = await tratativaService.criarTratativa(dadosFormulario);
+        const tratativaId = result.id;
+        const dadosOriginais = result.dadosOriginais;
 
         // Log de sucesso na criação
         const processingTime = Date.now() - startTime;
@@ -282,7 +287,12 @@ router.post('/create', async (req, res) => {
             status: 'success',
             message: 'Tratativa criada com sucesso',
             id: tratativaId,
-            processingTime: `${(processingTime / 1000).toFixed(2)}s`
+            processingTime: `${(processingTime / 1000).toFixed(2)}s`,
+            dados_preservados: {
+                imagem: dadosOriginais.url_imagem ? 'Preservada' : 'Não fornecida',
+                texto_infracao: dadosOriginais.descricao_penalidade ? 'Preservado' : 'Não fornecido',
+                advertido: dadosOriginais.advertido || 'Detectado automaticamente'
+            }
         };
 
         if (ehP1) {
@@ -444,9 +454,9 @@ router.post('/pdftasks', async (req, res) => {
             DOP_HORA: tratativa.hora_infracao,
             DOP_CODIGO: tratativa.codigo_infracao,
             DOP_GRAU: grauPenalidade,
-            DOP_PENALIDADE: descricaoPenalidade,
-            // Usar imagem padrão já que não temos acesso aos dados originais
-            DOP_IMAGEM: process.env.URL_IMAGEM_PADRAO || 'https://via.placeholder.com/400x300',
+            DOP_PENALIDADE: tratativa.texto_infracao || descricaoPenalidade,
+            // Usar imagem salva no banco
+            DOP_IMAGEM: tratativa.imagem_evidencia1 || process.env.URL_IMAGEM_PADRAO || 'https://via.placeholder.com/400x300',
             DOP_LIDER: tratativa.lider,
             DOP_CPF: tratativa.cpf,
             DOP_DATA_EXTENSA: formatarDataExtensa(tratativa.data_infracao),
@@ -1141,8 +1151,8 @@ router.post('/pdftasks/single', async (req, res) => {
             DOP_HORA: tratativa.hora_infracao,
             DOP_CODIGO: tratativa.codigo_infracao,
             DOP_GRAU: grauPenalidade,
-            DOP_PENALIDADE: descricaoPenalidade,
-            DOP_IMAGEM: tratativa.imagem_evidencia1 || process.env.URL_IMAGEM_PADRAO || '', // Valor padrão para imagem
+            DOP_PENALIDADE: tratativa.texto_infracao || descricaoPenalidade,
+            DOP_IMAGEM: tratativa.imagem_evidencia1 || process.env.URL_IMAGEM_PADRAO || '', // Usar imagem salva no banco
             DOP_LIDER: tratativa.lider,
             DOP_CPF: tratativa.cpf,
             DOP_DATA_EXTENSA: formatarDataExtensa(tratativa.data_infracao)
