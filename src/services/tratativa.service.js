@@ -178,16 +178,8 @@ class TratativaService {
                 descricao_infracao: String(dadosFormulario.infracao_cometida || '').trim(),
                 penalidade: String(dadosFormulario.penalidade || '').trim(),
                 lider: String(dadosFormulario.nome_lider || '').trim(),
-                // Salvar dados originais do frontend em JSON para usar no PDF
-                dados_originais: JSON.stringify({
-                    url_imagem: dadosFormulario.url_imagem,
-                    descricao_penalidade: dadosFormulario.descricao_penalidade,
-                    texto_infracao: dadosFormulario.texto_infracao,
-                    advertido: dadosFormulario.advertido,
-                    valor_registrado: dadosFormulario.valor_praticado,
-                    valor_limite: dadosFormulario.valor_limite,
-                    metrica: dadosFormulario.metrica
-                }),
+                // Campos removidos por não existirem na tabela:
+                // valor_praticado, texto_limite, url_imagem, texto_infracao, dados_originais
                 mock: false,
                 status: dadosFormulario.status || 'Pendente'
             };
