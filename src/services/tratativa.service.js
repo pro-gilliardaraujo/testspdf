@@ -64,6 +64,27 @@ class TratativaService {
         return valueStr.includes(type.toLowerCase());
     }
 
+    // Método auxiliar para extrair email do campo analista
+    extractAnalystEmail(analistaField) {
+        if (!analistaField) return '';
+        
+        const str = String(analistaField);
+        
+        // Procurar por email no formato: Nome(email@dominio) ou email@dominio
+        const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
+        const match = str.match(emailRegex);
+        
+        if (match && match[1]) {
+            const email = match[1];
+            // Verificar se é do domínio correto
+            if (email.includes('@ib.logistica')) {
+                return email;
+            }
+        }
+        
+        return '';
+    }
+
     validarDadosFormulario(dados) {
         // Campos obrigatórios que existem na tabela do banco
         const camposObrigatorios = {
@@ -163,15 +184,11 @@ class TratativaService {
                 status: dadosFormulario.status || 'Pendente'
             };
 
-            // Adicionar campo analista (email @iblogistica.com)
-            if (dadosFormulario.analista && dadosFormulario.analista.includes('@iblogistica.com')) {
-                dadosTratativa.analista = String(dadosFormulario.analista).trim();
-            } else if (dadosFormulario.nome_analista && dadosFormulario.nome_analista.includes('@iblogistica.com')) {
-                dadosTratativa.analista = String(dadosFormulario.nome_analista).trim();
-            } else {
-                // Se não houver email de analista, deixar vazio
-                dadosTratativa.analista = '';
-            }
+            // Adicionar campo analista (extrair email @ib.logistica)
+            const emailAnalista = this.extractAnalystEmail(dadosFormulario.analista) || 
+                                 this.extractAnalystEmail(dadosFormulario.nome_analista);
+            
+            dadosTratativa.analista = emailAnalista;
 
             // Log detalhado dos dados preparados para o banco
             logger.info('Dados preparados para inserção', {
