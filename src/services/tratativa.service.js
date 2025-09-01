@@ -163,16 +163,14 @@ class TratativaService {
                 status: dadosFormulario.status || 'Pendente'
             };
 
-            // Adicionar campo analista
-            if (dadosFormulario.analista) {
+            // Adicionar campo analista (email @iblogistica.com)
+            if (dadosFormulario.analista && dadosFormulario.analista.includes('@iblogistica.com')) {
                 dadosTratativa.analista = String(dadosFormulario.analista).trim();
-            } else if (dadosFormulario.nome_analista) {
+            } else if (dadosFormulario.nome_analista && dadosFormulario.nome_analista.includes('@iblogistica.com')) {
                 dadosTratativa.analista = String(dadosFormulario.nome_analista).trim();
-            } else if (dadosFormulario.nome_lider) {
-                // Se não tiver analista específico, usar o líder como analista
-                dadosTratativa.analista = String(dadosFormulario.nome_lider).trim();
             } else {
-                dadosTratativa.analista = 'Sistema';
+                // Se não houver email de analista, deixar vazio
+                dadosTratativa.analista = '';
             }
 
             // Log detalhado dos dados preparados para o banco
