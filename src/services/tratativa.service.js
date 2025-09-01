@@ -39,6 +39,7 @@ class TratativaService {
     }
 
     validarDadosFormulario(dados) {
+        // Campos obrigatórios que existem na tabela do banco
         const camposObrigatorios = {
             numero_documento: 'Número do Documento',
             nome_funcionario: 'Nome do Funcionário',
@@ -48,12 +49,8 @@ class TratativaService {
             infracao_cometida: 'Descrição da Infração',
             data_infracao: 'Data da Infração',
             hora_infracao: 'Hora da Infração',
-            valor_praticado: 'Valor Registrado',
-            valor_limite: 'Valor Limite',
             codigo_infracao: 'Código da Infração',
             penalidade: 'Tipo de Penalidade',
-            texto_infracao: 'Descrição da Penalidade',
-            url_imagem: 'URL da Imagem',
             nome_lider: 'Líder'
         };
 
@@ -66,17 +63,13 @@ class TratativaService {
         const camposFaltantes = [];
         for (const [campo, nome] of Object.entries(camposObrigatorios)) {
             // Campos que podem ter valores padrão
-            const camposComPadrao = ['valor_praticado', 'valor_limite', 'codigo_infracao', 'url_imagem'];
+            const camposComPadrao = ['codigo_infracao'];
             
             if (!dados[campo] && dados[campo] !== 0 && dados[campo] !== '0') {
                 // Se o campo tem padrão e está vazio, usar valor padrão
                 if (camposComPadrao.includes(campo)) {
-                    if (campo === 'valor_praticado' || campo === 'valor_limite') {
-                        dados[campo] = '0';
-                    } else if (campo === 'codigo_infracao') {
+                    if (campo === 'codigo_infracao') {
                         dados[campo] = '--';
-                    } else if (campo === 'url_imagem') {
-                        dados[campo] = process.env.URL_IMAGEM_PADRAO || '';
                     }
                 } else {
                     camposFaltantes.push(nome);
@@ -97,14 +90,7 @@ class TratativaService {
             throw new Error(`Campos obrigatórios faltando: ${camposFaltantes.join(', ')}`);
         }
 
-        // Validação adicional dos valores numéricos
-        if (isNaN(parseFloat(dados.valor_praticado))) {
-            throw new Error('Valor Registrado deve ser um número válido');
-        }
-
-        if (isNaN(parseFloat(dados.valor_limite))) {
-            throw new Error('Valor Limite deve ser um número válido');
-        }
+        // Validações numéricas removidas pois os campos não existem na tabela
     }
 
     async criarTratativa(dadosFormulario) {
@@ -121,18 +107,15 @@ class TratativaService {
                 }
             });
 
-            // Garantir que valores numéricos não sejam nulos e converter para string
-            const valor_praticado = this.formatarValorNumerico(dadosFormulario.valor_praticado);
-            const valor_limite = this.formatarValorNumerico(dadosFormulario.valor_limite);
-            // Removido metrica pois não existe na tabela do banco
+            // Campos removidos pois não existem na tabela do banco:
+            // - valor_praticado
+            // - valor_limite (texto_limite)
+            // - metrica
 
             // Log dos valores processados
-            logger.info('Valores após processamento', {
-                operation: 'Criar Tratativa - Valores Processados',
-                valores: {
-                    valor_praticado,
-                    valor_limite
-                }
+            logger.info('Dados validados e prontos para inserção', {
+                operation: 'Criar Tratativa - Validação Concluída',
+                status: 'Dados válidos para o schema do banco'
             });
 
             // Preparar dados para o banco
@@ -147,13 +130,9 @@ class TratativaService {
                 codigo_infracao: String(dadosFormulario.codigo_infracao || '').trim(),
                 descricao_infracao: String(dadosFormulario.infracao_cometida || '').trim(),
                 penalidade: String(dadosFormulario.penalidade || '').trim(),
-                // Removendo o campo texto_infracao que está causando o erro
-                // texto_infracao: String(dadosFormulario.texto_excesso || '').trim(),
                 lider: String(dadosFormulario.nome_lider || '').trim(),
-                valor_praticado,
-                texto_limite: valor_limite,
-                // Removendo o campo url_imagem que está causando o erro
-                // url_imagem: String(dadosFormulario.url_imagem || '').trim(),
+                // Campos removidos por não existirem na tabela:
+                // valor_praticado, texto_limite, url_imagem, texto_infracao
                 mock: false,
                 status: dadosFormulario.status || 'Pendente'
             };
