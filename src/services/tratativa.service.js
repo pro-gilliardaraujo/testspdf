@@ -124,15 +124,14 @@ class TratativaService {
             // Garantir que valores numéricos não sejam nulos e converter para string
             const valor_praticado = this.formatarValorNumerico(dadosFormulario.valor_praticado);
             const valor_limite = this.formatarValorNumerico(dadosFormulario.valor_limite);
-            const metrica = this.formatarValorNumerico(dadosFormulario.metrica, 'ocorrências');
+            // Removido metrica pois não existe na tabela do banco
 
             // Log dos valores processados
             logger.info('Valores após processamento', {
                 operation: 'Criar Tratativa - Valores Processados',
                 valores: {
                     valor_praticado,
-                    valor_limite,
-                    metrica
+                    valor_limite
                 }
             });
 
@@ -152,7 +151,6 @@ class TratativaService {
                 // texto_infracao: String(dadosFormulario.texto_excesso || '').trim(),
                 lider: String(dadosFormulario.nome_lider || '').trim(),
                 valor_praticado,
-                metrica: metrica,
                 texto_limite: valor_limite,
                 // Removendo o campo url_imagem que está causando o erro
                 // url_imagem: String(dadosFormulario.url_imagem || '').trim(),
