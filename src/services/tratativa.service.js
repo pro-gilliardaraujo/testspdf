@@ -65,8 +65,22 @@ class TratativaService {
 
         const camposFaltantes = [];
         for (const [campo, nome] of Object.entries(camposObrigatorios)) {
+            // Campos que podem ter valores padrão
+            const camposComPadrao = ['valor_praticado', 'valor_limite', 'codigo_infracao', 'url_imagem'];
+            
             if (!dados[campo] && dados[campo] !== 0 && dados[campo] !== '0') {
-                camposFaltantes.push(nome);
+                // Se o campo tem padrão e está vazio, usar valor padrão
+                if (camposComPadrao.includes(campo)) {
+                    if (campo === 'valor_praticado' || campo === 'valor_limite') {
+                        dados[campo] = '0';
+                    } else if (campo === 'codigo_infracao') {
+                        dados[campo] = '--';
+                    } else if (campo === 'url_imagem') {
+                        dados[campo] = process.env.URL_IMAGEM_PADRAO || '';
+                    }
+                } else {
+                    camposFaltantes.push(nome);
+                }
             }
         }
 

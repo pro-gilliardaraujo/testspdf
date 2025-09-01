@@ -231,29 +231,30 @@ router.post('/create', async (req, res) => {
             details: {
                 numero_documento: req.body.numero_documento,
                 codigo_infracao: req.body.codigo_infracao,
-                funcionario: req.body.nome,
+                funcionario: req.body.nome || req.body.nome_funcionario || req.body.funcionario,
                 timestamp: new Date().toISOString()
             }
         });
 
         // Mapear campos da API para o formato interno
+        // Aceitar tanto os nomes da documentação quanto os que o frontend já está enviando
         const dadosFormulario = {
-            numero_documento: req.body.numero_documento,
-            nome_funcionario: req.body.nome,
+            numero_documento: req.body.numero_documento || req.body.numero_tratativa,
+            nome_funcionario: req.body.nome || req.body.nome_funcionario || req.body.funcionario,
             funcao: req.body.funcao,
             setor: req.body.setor,
             cpf: req.body.cpf,
-            infracao_cometida: req.body.descricao_infracao,
+            infracao_cometida: req.body.descricao_infracao || req.body.infracao_cometida,
             data_infracao: req.body.data_infracao,
             hora_infracao: req.body.hora_infracao,
-            valor_praticado: req.body.valor_registrado,
+            valor_praticado: req.body.valor_registrado || req.body.valor_praticado,
             metrica: req.body.metrica,
-            valor_limite: req.body.valor_limite,
+            valor_limite: req.body.valor_limite || req.body.texto_limite,
             codigo_infracao: req.body.codigo_infracao,
-            penalidade: req.body.tipo_penalidade,
-            texto_infracao: req.body.descricao_penalidade,
+            penalidade: req.body.tipo_penalidade || req.body.penalidade,
+            texto_infracao: req.body.descricao_penalidade || req.body.texto_infracao,
             url_imagem: req.body.url_imagem,
-            nome_lider: req.body.lider
+            nome_lider: req.body.lider || req.body.nome_lider
         };
 
         // Criar tratativa no banco
@@ -1764,6 +1765,76 @@ router.get('/list-without-pdf', async (req, res) => {
     }
 });
 
+// Rota para teste de criação com dados mínimos
+router.post('/create-test', async (req, res) => {
+    const tratativaService = require('../services/tratativa.service');
+    const startTime = Date.now();
+    
+    try {
+        logger.info('Requisição de teste de criação recebida', {
+            operation: 'Create Test Tratativa',
+            body: req.body
+        });
+
+        // Dados padrão para teste
+        const dadosFormulario = {
+            numero_documento: req.body.numero_documento || `TEST-${Date.now()}`,
+            nome_funcionario: req.body.nome || req.body.nome_funcionario || req.body.funcionario || 'Funcionário Teste',
+            funcao: req.body.funcao || 'MOTORISTA CARRETEIRO',
+            setor: req.body.setor || 'OPERACIONAL',
+            cpf: req.body.cpf || '000.000.000-00',
+            infracao_cometida: req.body.descricao_infracao || req.body.infracao_cometida || 'Teste de Infração',
+            data_infracao: req.body.data_infracao || new Date().toISOString().split('T')[0],
+            hora_infracao: req.body.hora_infracao || '08:00',
+            valor_praticado: req.body.valor_registrado || req.body.valor_praticado || '0',
+            metrica: req.body.metrica || 'ocorrências',
+            valor_limite: req.body.valor_limite || req.body.texto_limite || '0',
+            codigo_infracao: req.body.codigo_infracao || 'P1-001',
+            penalidade: req.body.tipo_penalidade || req.body.penalidade || 'P1 - Orientação Verbal',
+            texto_infracao: req.body.descricao_penalidade || req.body.texto_infracao || 'Teste de penalidade',
+            url_imagem: req.body.url_imagem || process.env.URL_IMAGEM_PADRAO || 'https://via.placeholder.com/400x300',
+            nome_lider: req.body.lider || req.body.nome_lider || 'Líder Teste'
+        };
+
+        // Criar tratativa no banco
+        const { id: tratativaId } = await tratativaService.criarTratativa(dadosFormulario);
+
+        const processingTime = Date.now() - startTime;
+        logger.info('Tratativa de teste criada com sucesso', {
+            operation: 'Create Test Tratativa - Success',
+            details: {
+                tratativaId,
+                processingTimeMs: processingTime
+            }
+        });
+
+        return res.json({
+            status: 'success',
+            message: 'Tratativa de teste criada com sucesso',
+            id: tratativaId,
+            processingTime: `${(processingTime / 1000).toFixed(2)}s`,
+            note: 'Esta é uma tratativa de teste. Use /pdftasks para gerar PDF.'
+        });
+
+    } catch (error) {
+        const processingTime = Date.now() - startTime;
+        logger.error('Erro na criação da tratativa de teste', {
+            operation: 'Create Test Tratativa - Error',
+            error: {
+                message: error.message,
+                stack: error.stack
+            },
+            processingTimeMs: processingTime
+        });
+
+        return res.status(500).json({
+            status: 'error',
+            message: 'Erro ao criar tratativa de teste',
+            error: error.message
+        });
+    }
+});
+
 // Rota para excluir uma tratativa
 router.delete('/delete/:id', async (req, res) => {
     const { id } = req.params;
@@ -1816,6 +1887,29 @@ router.delete('/delete/:id', async (req, res) => {
             error: error.message
         });
     }
+});
+
+// Rota para testar conexão e listar endpoints
+router.get('/test-connection', (req, res) => {
+    const endpoints = [
+        'GET /api/tratativa/test-connection - Testar conexão',
+        'POST /api/tratativa/create - Criar tratativa',
+        'POST /api/tratativa/create-test - Criar tratativa de teste (com dados padrão)',
+        'POST /api/tratativa/pdftasks - Gerar PDF completo (2 folhas)',
+        'POST /api/tratativa/pdftasks/single - Gerar PDF folha única',
+        'POST /api/tratativa/regenerate-pdf - Regenerar PDF',
+        'GET /api/tratativa/list - Listar todas as tratativas',
+        'GET /api/tratativa/list-without-pdf - Listar tratativas sem PDF',
+        'DELETE /api/tratativa/delete/:id - Excluir tratativa'
+    ];
+
+    res.json({
+        status: 'ok',
+        message: 'API de tratativas operando normalmente',
+        timestamp: new Date().toISOString(),
+        version: '1.0.0',
+        endpoints: endpoints
+    });
 });
 
 module.exports = router;
