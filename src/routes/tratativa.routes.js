@@ -450,7 +450,7 @@ router.post('/pdftasks', async (req, res) => {
             DOP_FUNCAO: tratativa.funcao,
             DOP_SETOR: tratativa.setor,
             DOP_DESCRICAO: tratativa.descricao_infracao,
-            DOP_DATA: formatarDataBrasileira(tratativa.data_infracao),
+            DOP_DATA: formatarDataBrasileira(tratativa.data_infracao), // DD/MM/YYYY
             DOP_HORA: tratativa.hora_infracao,
             DOP_CODIGO: tratativa.codigo_infracao,
             DOP_GRAU: grauPenalidade,
@@ -460,11 +460,34 @@ router.post('/pdftasks', async (req, res) => {
             DOP_LIDER: tratativa.lider,
             DOP_CPF: tratativa.cpf,
             DOP_DATA_EXTENSA: formatarDataExtensa(tratativa.data_infracao),
-            // Detectar tipo de penalidade pelo código
-            DOP_ADVERTIDO: (tratativa.codigo_infracao && (tratativa.codigo_infracao.includes('P1') || tratativa.codigo_infracao.includes('P2'))) ? 'X' : '',
-            DOP_SUSPENSO: (tratativa.codigo_infracao && (tratativa.codigo_infracao.includes('P3') || tratativa.codigo_infracao.includes('P4'))) ? 'X' : '',
-            DOP_TEXTO_ADVERTENCIA: 'O colaborador foi advertido conforme as normas da empresa.'
+            // CORRIGIDO: Detectar advertido/suspenso baseado no grau da penalidade
+            DOP_ADVERTIDO: (['P1', 'P2'].includes(grauPenalidade) || tratativa.advertido === 'Advertido') ? 'X' : '',
+            DOP_SUSPENSO: (['P3', 'P4'].includes(grauPenalidade) || tratativa.advertido === 'Suspenso') ? 'X' : '',
+            DOP_TEXTO_ADVERTENCIA: tratativa.texto_infracao || `Ter ${tratativa.descricao_infracao?.toLowerCase() || 'cometido infração'}`
         };
+
+        // 🔍 LOG DETALHADO DOS DADOS ENVIADOS PARA DOPPIO
+        logger.info('DADOS CRÍTICOS PARA PDF - FOLHA 1', {
+            operation: 'PDF Task - Template Data Debug',
+            tratativa_id: tratativa.id,
+            dados_banco: {
+                numero_tratativa: tratativa.numero_tratativa,
+                funcionario: tratativa.funcionario,
+                codigo_infracao: tratativa.codigo_infracao,
+                penalidade: tratativa.penalidade,
+                texto_infracao: tratativa.texto_infracao,
+                imagem_evidencia1: tratativa.imagem_evidencia1,
+                advertido_campo_banco: tratativa.advertido || 'CAMPO NÃO EXISTE NO BANCO'
+            },
+            dados_enviados_doppio: {
+                DOP_IMAGEM: templateDataFolha1.DOP_IMAGEM,
+                DOP_PENALIDADE: templateDataFolha1.DOP_PENALIDADE,
+                DOP_ADVERTIDO: templateDataFolha1.DOP_ADVERTIDO,
+                DOP_SUSPENSO: templateDataFolha1.DOP_SUSPENSO,
+                DOP_TEXTO_ADVERTENCIA: templateDataFolha1.DOP_TEXTO_ADVERTENCIA
+            },
+            template_id: process.env.DOPPIO_TEMPLATE_ID_FOLHA1
+        });
 
         // Validar campos obrigatórios Folha 1
         const camposObrigatoriosFolha1 = [
@@ -731,32 +754,60 @@ router.post('/pdftasks', async (req, res) => {
         }
 
         // Continue com a geração da folha 2 apenas se folhaUnica não for true
-        // Preparar dados para Folha 2
+        // Preparar dados para Folha 2 (baseado no template que funciona)
         const templateDataFolha2 = {
-            ...templateDataFolha1,
-            DOP_ADVERTIDO: tratativa.advertido === 'Advertido' ? 'X' : ' ',
-            DOP_SUSPENSO: tratativa.advertido === 'Suspenso' ? 'X' : ' ',
-            DOP_TEXTO_ADVERTENCIA: tratativa.texto_advertencia || 'O colaborador foi advertido conforme as normas da empresa.'
+            DOP_NUMERO_DOCUMENTO: tratativa.numero_tratativa,
+            DOP_NOME: tratativa.funcionario,
+            DOP_SETOR: tratativa.setor,
+            DOP_CPF: tratativa.cpf,
+            DOP_FUNCAO: tratativa.funcao,
+            // CORRIGIDO: Usar mesma lógica da Folha 1 para advertido/suspenso
+            DOP_ADVERTIDO: (['P1', 'P2'].includes(grauPenalidade) || tratativa.advertido === 'Advertido') ? 'X' : '',
+            DOP_SUSPENSO: (['P3', 'P4'].includes(grauPenalidade) || tratativa.advertido === 'Suspenso') ? 'X' : '',
+            // CORRIGIDO: Texto de advertência baseado na infração
+            DOP_TEXTO_ADVERTENCIA: tratativa.texto_infracao || `Ter ${tratativa.descricao_infracao?.toLowerCase() || 'cometido infração'}`,
+            // CORRIGIDO: Usar campos específicos da Folha 2
+            DOP_DATA_INFRACAO: formatarDataBrasileira(tratativa.data_infracao), // DD/MM/YYYY
+            DOP_HORA_INFRACAO: tratativa.hora_infracao
         };
 
-        // Log para debug do campo advertido
-        logger.info('Valores dos campos de penalidade', {
-            operation: 'PDF Task - Debug Penalidade',
+        // 🔍 LOG DETALHADO DOS DADOS ENVIADOS PARA DOPPIO - FOLHA 2
+        logger.info('DADOS CRÍTICOS PARA PDF - FOLHA 2', {
+            operation: 'PDF Task - Template Data Debug Folha 2',
             tratativa_id: tratativa.id,
-            dados: {
+            dados_banco: {
+                numero_tratativa: tratativa.numero_tratativa,
+                funcionario: tratativa.funcionario,
+                setor: tratativa.setor,
+                cpf: tratativa.cpf,
+                funcao: tratativa.funcao,
                 penalidade: tratativa.penalidade,
-                advertido: tratativa.advertido,
+                grau_penalidade: grauPenalidade,
+                texto_infracao: tratativa.texto_infracao,
+                advertido_campo_banco: tratativa.advertido || 'CAMPO NÃO EXISTE NO BANCO'
+            },
+            dados_enviados_doppio_folha2: {
                 DOP_ADVERTIDO: templateDataFolha2.DOP_ADVERTIDO,
-                DOP_SUSPENSO: templateDataFolha2.DOP_SUSPENSO
-            }
+                DOP_SUSPENSO: templateDataFolha2.DOP_SUSPENSO,
+                DOP_TEXTO_ADVERTENCIA: templateDataFolha2.DOP_TEXTO_ADVERTENCIA,
+                DOP_DATA_INFRACAO: templateDataFolha2.DOP_DATA_INFRACAO,
+                DOP_HORA_INFRACAO: templateDataFolha2.DOP_HORA_INFRACAO
+            },
+            template_id: process.env.DOPPIO_TEMPLATE_ID_FOLHA2
         });
 
-        // Validar campos obrigatórios Folha 2
+        // Validar campos obrigatórios Folha 2 (baseado no template que funciona)
         const camposObrigatoriosFolha2 = [
-            ...camposObrigatoriosFolha1,
+            'DOP_NUMERO_DOCUMENTO',
+            'DOP_NOME',
+            'DOP_SETOR',
+            'DOP_CPF',
+            'DOP_FUNCAO',
             'DOP_ADVERTIDO',
             'DOP_SUSPENSO',
-            'DOP_TEXTO_ADVERTENCIA'
+            'DOP_TEXTO_ADVERTENCIA',
+            'DOP_DATA_INFRACAO',
+            'DOP_HORA_INFRACAO'
         ];
 
         const camposVaziosFolha2 = camposObrigatoriosFolha2.filter(
