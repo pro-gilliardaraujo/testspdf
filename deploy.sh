@@ -39,6 +39,45 @@ fi
 echo -e "${YELLOW}⏸️  Parando aplicação...${NC}"
 pm2 stop $APP_NAME 2>/dev/null || echo "Aplicação não estava rodando"
 
+# 2.1. Limpeza de arquivos temporários
+echo -e "${YELLOW}🧹 Limpando arquivos temporários...${NC}"
+cleanup_temp_files() {
+    local cleaned=0
+    
+    # Limpar diretório temp/
+    if [ -d "temp" ]; then
+        local temp_files=$(find temp/ -type f -name "*.pdf" 2>/dev/null | wc -l)
+        rm -rf temp/*.pdf 2>/dev/null || true
+        rm -rf temp/*.tmp 2>/dev/null || true
+        rm -rf temp/*.log 2>/dev/null || true
+        cleaned=$((cleaned + temp_files))
+    fi
+    
+    # Limpar logs antigos do PM2
+    if [ -d "$HOME/.pm2/logs" ]; then
+        local old_logs=$(find $HOME/.pm2/logs/ -name "*.log" -mtime +7 2>/dev/null | wc -l)
+        find $HOME/.pm2/logs/ -name "*.log" -mtime +7 -delete 2>/dev/null || true
+        cleaned=$((cleaned + old_logs))
+    fi
+    
+    # Limpar backups antigos do .env (manter apenas os 5 mais recentes)
+    if ls .env.backup.* 1> /dev/null 2>&1; then
+        local old_backups=$(ls -t .env.backup.* 2>/dev/null | tail -n +6 | wc -l)
+        ls -t .env.backup.* 2>/dev/null | tail -n +6 | xargs rm -f 2>/dev/null || true
+        cleaned=$((cleaned + old_backups))
+    fi
+    
+    # Limpar node_modules/.cache se existir
+    if [ -d "node_modules/.cache" ]; then
+        rm -rf node_modules/.cache/* 2>/dev/null || true
+        cleaned=$((cleaned + 1))
+    fi
+    
+    echo -e "${GREEN}✅ Dados temporários removidos ($cleaned arquivos)${NC}"
+}
+
+cleanup_temp_files
+
 # 3. Backup do .env atual
 echo -e "${YELLOW}💾 Fazendo backup do .env...${NC}"
 if [ -f ".env" ]; then
@@ -158,33 +197,45 @@ pm2 startup
 echo -e "${YELLOW}🧪 Testando conectividade...${NC}"
 sleep 5
 
-# Teste HTTP primeiro (pode ser redirecionado)
-echo "Testando HTTP..."
-curl -I http://$DOMAIN:3000/api/tratativa/test-connection || true
+test_connectivity() {
+    local success=0
+    
+    # Teste HTTPS (silencioso)
+    if curl -s -I --max-time 10 https://$DOMAIN:3000/api/tratativa/test-connection >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ HTTPS funcionando${NC}"
+        success=1
+    else
+        # Fallback para HTTP se HTTPS falhar
+        if curl -s -I --max-time 10 http://$DOMAIN:3000/api/tratativa/test-connection >/dev/null 2>&1; then
+            echo -e "${YELLOW}⚠️  HTTP funcionando (HTTPS com problema)${NC}"
+            success=1
+        else
+            echo -e "${RED}❌ Conectividade falhando${NC}"
+            echo -e "${YELLOW}💡 Verificando logs do PM2...${NC}"
+            pm2 logs $APP_NAME --lines 5 --nostream 2>/dev/null || echo "Logs não disponíveis"
+        fi
+    fi
+    
+    return $success
+}
 
-# Teste HTTPS
-echo "Testando HTTPS..."
-if curl -I https://$DOMAIN:3000/api/tratativa/test-connection; then
-    echo -e "${GREEN}✅ HTTPS funcionando!${NC}"
-else
-    echo -e "${RED}❌ Erro no HTTPS. Verificando logs...${NC}"
-    pm2 logs $APP_NAME --lines 20
-fi
+test_connectivity
 
 echo ""
 echo "=================================================="
-echo -e "${GREEN}🎉 Deploy concluído!${NC}"
-echo -e "${BLUE}📊 Status da aplicação:${NC}"
-pm2 status
+echo -e "${GREEN}🎉 Deploy concluído com sucesso!${NC}"
+
+# Status resumido
+APP_STATUS=$(pm2 jlist | jq -r ".[] | select(.name==\"$APP_NAME\") | .pm2_env.status" 2>/dev/null || echo "unknown")
+if [ "$APP_STATUS" = "online" ]; then
+    echo -e "${GREEN}✅ Aplicação online${NC}"
+else
+    echo -e "${RED}❌ Aplicação com problema: $APP_STATUS${NC}"
+fi
+
+# URLs principais
+echo -e "${BLUE}🔗 API Principal: https://$DOMAIN:3000/api/tratativa/${NC}"
 
 echo ""
-echo -e "${BLUE}🔗 URLs disponíveis:${NC}"
-echo -e "  • HTTPS: https://$DOMAIN:3000/api/tratativa/test-connection"
-echo -e "  • HTTP:  http://$DOMAIN:3000/api/tratativa/test-connection"
-
-echo ""
-echo -e "${YELLOW}💡 Comandos úteis:${NC}"
-echo -e "  • Logs:    pm2 logs $APP_NAME"
-echo -e "  • Status:  pm2 status"
-echo -e "  • Restart: pm2 restart $APP_NAME"
-echo -e "  • Stop:    pm2 stop $APP_NAME"
+echo -e "${YELLOW}💡 Para monitorar:${NC} pm2 logs $APP_NAME"
+echo -e "${YELLOW}💡 Para status:${NC} pm2 status"
