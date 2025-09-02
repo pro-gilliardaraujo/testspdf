@@ -9,7 +9,22 @@ O frontend atual não está enviando todos os dados necessários para a geraçã
 1. **Campo `advertido`** - Crítico para marcar checkboxes no PDF
 2. **Campo `url_imagem`** - Para a imagem de evidência
 3. **Campo `descricao_penalidade`** - Para o texto real da infração
-4. **Fluxo automático** - Não gera PDF automaticamente após criar P1
+4. **Campo `analista`** - ⚠️ **CRÍTICO: Campo analista vazio na tabela final do PDF**
+5. **Fluxo automático** - Não gera PDF automaticamente após criar P1
+
+### ⚠️ **PROBLEMA CRÍTICO IDENTIFICADO - CAMPO ANALISTA**
+
+**🚨 LOGS MOSTRAM:** O frontend **NÃO está enviando nenhum campo com email do analista**, resultando em campo `analista` vazio na tabela final do PDF.
+
+**✅ SOLUÇÃO OBRIGATÓRIA:**
+```javascript
+// O frontend DEVE enviar um destes campos:
+{
+  analista: "Gilliard(gilliard@ib.logistica)", // FORMATO PREFERIDO
+  // OU
+  email_analista: "gilliard@ib.logistica"     // FORMATO ALTERNATIVO
+}
+```
 
 ## 🎯 **CORREÇÕES OBRIGATÓRIAS**
 
@@ -42,7 +57,12 @@ const dadosParaBackend = {
   // Campos opcionais com valores padrão
   valor_registrado: "0",
   metrica: "ocorrências", 
-  valor_limite: "0"
+  valor_limite: "0",
+  
+  // 🚨 CAMPO ANALISTA - CRÍTICO (estava faltando):
+  analista: "Gilliard(gilliard@ib.logistica)", // ⚠️ OBRIGATÓRIO para preencher campo analista na tabela final do PDF
+  // OU alternativamente:
+  // email_analista: "gilliard@ib.logistica"
 };
 ```
 

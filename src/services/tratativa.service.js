@@ -204,9 +204,13 @@ class TratativaService {
                 campos_recebidos: {
                     analista: dadosFormulario.analista,
                     nome_analista: dadosFormulario.nome_analista,
+                    email_analista: dadosFormulario.email_analista,
+                    analista_email: dadosFormulario.analista_email,
                     lider: dadosFormulario.nome_lider,
                     all_keys: Object.keys(dadosFormulario)
-                }
+                },
+                problema_identificado: "FRONTEND NÃO ESTÁ ENVIANDO CAMPO COM EMAIL DO ANALISTA",
+                solucao: "Frontend precisa enviar campo 'analista' com formato: 'Nome(email@ib.logistica)' ou campo 'email_analista' separado"
             });
             
             // Procurar email em vários campos
