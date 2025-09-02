@@ -461,9 +461,9 @@ router.post('/pdftasks', async (req, res) => {
             DOP_CPF: tratativa.cpf,
             DOP_DATA_EXTENSA: formatarDataExtensa(tratativa.data_infracao),
             // CORRIGIDO: Detectar advertido/suspenso baseado no grau da penalidade
-            DOP_ADVERTIDO: (['P1', 'P2'].includes(grauPenalidade) || tratativa.advertido === 'Advertido') ? 'X' : '',
-            DOP_SUSPENSO: (['P3', 'P4'].includes(grauPenalidade) || tratativa.advertido === 'Suspenso') ? 'X' : '',
-            DOP_TEXTO_ADVERTENCIA: tratativa.texto_infracao || `Ter ${tratativa.descricao_infracao?.toLowerCase() || 'cometido infração'}`
+            DOP_ADVERTIDO: (['P1', 'P2'].includes(grauPenalidade) || tratativa.advertido === 'Advertido') ? 'X' : ' ',
+            DOP_SUSPENSO: (['P3', 'P4'].includes(grauPenalidade) || tratativa.advertido === 'Suspenso') ? 'X' : ' ',
+            DOP_TEXTO_ADVERTENCIA: tratativa.texto_advertencia || tratativa.texto_infracao || `Ter ${tratativa.descricao_infracao?.toLowerCase() || 'cometido infração'}`
         };
 
         // 🔍 LOG DETALHADO DOS DADOS ENVIADOS PARA DOPPIO
@@ -762,10 +762,10 @@ router.post('/pdftasks', async (req, res) => {
             DOP_CPF: tratativa.cpf,
             DOP_FUNCAO: tratativa.funcao,
             // CORRIGIDO: Usar mesma lógica da Folha 1 para advertido/suspenso
-            DOP_ADVERTIDO: (['P1', 'P2'].includes(grauPenalidade) || tratativa.advertido === 'Advertido') ? 'X' : '',
-            DOP_SUSPENSO: (['P3', 'P4'].includes(grauPenalidade) || tratativa.advertido === 'Suspenso') ? 'X' : '',
+            DOP_ADVERTIDO: (['P1', 'P2'].includes(grauPenalidade) || tratativa.advertido === 'Advertido') ? 'X' : ' ',
+            DOP_SUSPENSO: (['P3', 'P4'].includes(grauPenalidade) || tratativa.advertido === 'Suspenso') ? 'X' : ' ',
             // CORRIGIDO: Texto de advertência baseado na infração
-            DOP_TEXTO_ADVERTENCIA: tratativa.texto_infracao || `Ter ${tratativa.descricao_infracao?.toLowerCase() || 'cometido infração'}`,
+            DOP_TEXTO_ADVERTENCIA: tratativa.texto_advertencia || tratativa.texto_infracao || `Ter ${tratativa.descricao_infracao?.toLowerCase() || 'cometido infração'}`,
             // CORRIGIDO: Usar campos específicos da Folha 2
             DOP_DATA_INFRACAO: formatarDataBrasileira(tratativa.data_infracao), // DD/MM/YYYY
             DOP_HORA_INFRACAO: tratativa.hora_infracao

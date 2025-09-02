@@ -165,7 +165,7 @@ class TratativaService {
                 status: 'Dados válidos para o schema do banco'
             });
 
-            // Preparar dados para o banco (apenas campos que sabemos que existem)
+            // Preparar dados para o banco (incluindo campos que existem na tabela)
             const dadosTratativa = {
                 numero_tratativa: String(dadosFormulario.numero_documento || '').trim(),
                 funcionario: String(dadosFormulario.nome_funcionario || '').trim(),
@@ -178,6 +178,10 @@ class TratativaService {
                 descricao_infracao: String(dadosFormulario.infracao_cometida || '').trim(),
                 penalidade: String(dadosFormulario.penalidade || '').trim(),
                 lider: String(dadosFormulario.nome_lider || '').trim(),
+                // 🔧 CAMPOS QUE EXISTEM NA TABELA E DEVEM SER SALVOS:
+                imagem_evidencia1: dadosFormulario.url_imagem || null,
+                advertido: dadosFormulario.advertido || null,
+                texto_advertencia: dadosFormulario.texto_infracao || dadosFormulario.descricao_penalidade || null,
                 mock: false,
                 status: dadosFormulario.status || 'Pendente'
             };
@@ -191,15 +195,41 @@ class TratativaService {
                 }
             });
 
-            // Adicionar campo analista
-            // Se vier email, extrair. Se vier só nome, usar o nome mesmo
+            // Adicionar campo analista - procurar em vários campos possíveis
             let analista = '';
-            if (dadosFormulario.analista) {
-                const emailExtraido = this.extractAnalystEmail(dadosFormulario.analista);
-                analista = emailExtraido || dadosFormulario.analista; // Usar email se encontrar, senão usar o texto original
-            } else if (dadosFormulario.nome_analista) {
-                const emailExtraido = this.extractAnalystEmail(dadosFormulario.nome_analista);
-                analista = emailExtraido || dadosFormulario.nome_analista;
+            
+            // 🔍 LOG PARA DEBUG DOS CAMPOS DE ANALISTA
+            logger.info('Debug campos analista recebidos', {
+                operation: 'Criar Tratativa - Debug Analista',
+                campos_recebidos: {
+                    analista: dadosFormulario.analista,
+                    nome_analista: dadosFormulario.nome_analista,
+                    lider: dadosFormulario.nome_lider,
+                    all_keys: Object.keys(dadosFormulario)
+                }
+            });
+            
+            // Procurar email em vários campos
+            const camposParaAnalista = [
+                dadosFormulario.analista,
+                dadosFormulario.nome_analista,
+                dadosFormulario.email_analista,
+                dadosFormulario.analista_email
+            ];
+            
+            for (const campo of camposParaAnalista) {
+                if (campo) {
+                    const emailExtraido = this.extractAnalystEmail(campo);
+                    if (emailExtraido) {
+                        analista = emailExtraido;
+                        break;
+                    }
+                }
+            }
+            
+            // Se não encontrou email mas tem valor no campo analista, usar como está
+            if (!analista && dadosFormulario.analista && dadosFormulario.analista !== 'Advertido') {
+                analista = dadosFormulario.analista;
             }
             
             dadosTratativa.analista = analista;
